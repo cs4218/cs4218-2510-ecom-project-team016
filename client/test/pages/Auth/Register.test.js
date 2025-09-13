@@ -33,7 +33,7 @@ Object.defineProperty(window, "localStorage", {
   writable: true,
 });
 
-jest.mock("../../hooks/useCategory", () => jest.fn(() => []));
+jest.mock("client/src/hooks/useCategory", () => jest.fn(() => []));
 
 Object.defineProperty(window, "localStorage", {
   value: {
