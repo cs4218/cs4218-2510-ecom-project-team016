@@ -4,7 +4,7 @@
 // Products.test.js
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import Products from "client/src/pages/Admin/Products";
+import Products from "client/src/pages/admin/Products";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { MemoryRouter } from "react-router-dom";
