@@ -8,22 +8,27 @@ import moment from "moment";
 import { Select } from "antd";
 const { Option } = Select;
 
+const statuses = [
+  "Not Process",
+  "Processing",
+  "Shipped",
+  "Delivered",
+  "Cancelled",
+];
+
 const AdminOrders = () => {
-  const [status, setStatus] = useState([
-    "Not Process",
-    "Processing",
-    "Shipped",
-    "deliverd",
-    "cancel",
-  ]);
-  const [changeStatus, setCHangeStatus] = useState("");
   const [orders, setOrders] = useState([]);
   const [auth, setAuth] = useAuth();
   const getOrders = async () => {
     try {
       const { data } = await axios.get("/api/v1/auth/all-orders");
-      setOrders(data);
+      if (data) {
+        setOrders(data);
+      } else {
+        throw new Error();
+      }
     } catch (error) {
+      toast.error("Something went wrong");
       console.log(error);
     }
   };
@@ -37,8 +42,14 @@ const AdminOrders = () => {
       const { data } = await axios.put(`/api/v1/auth/order-status/${orderId}`, {
         status: value,
       });
-      getOrders();
+      if (data) {
+        toast.success("Status Updated");
+        getOrders();
+      } else {
+        throw new Error();
+      }
     } catch (error) {
+      toast.error("Something went wrong");
       console.log(error);
     }
   };
@@ -52,14 +63,14 @@ const AdminOrders = () => {
           <h1 className="text-center">All Orders</h1>
           {orders?.map((o, i) => {
             return (
-              <div className="border shadow">
+              <div className="border shadow" key={o._id}>
                 <table className="table">
                   <thead>
                     <tr>
                       <th scope="col">#</th>
                       <th scope="col">Status</th>
                       <th scope="col">Buyer</th>
-                      <th scope="col"> date</th>
+                      <th scope="col">Date</th>
                       <th scope="col">Payment</th>
                       <th scope="col">Quantity</th>
                     </tr>
@@ -69,11 +80,11 @@ const AdminOrders = () => {
                       <td>{i + 1}</td>
                       <td>
                         <Select
-                          bordered={false}
+                          variant="borderless"
                           onChange={(value) => handleChange(o._id, value)}
                           defaultValue={o?.status}
                         >
-                          {status.map((s, i) => (
+                          {statuses.map((s, i) => (
                             <Option key={i} value={s}>
                               {s}
                             </Option>
