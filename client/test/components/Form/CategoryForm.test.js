@@ -53,7 +53,7 @@ describe("CategoryForm", () => {
       <CategoryForm handleSubmit={handleSubmit} value="" setValue={setValue} />
     );
 
-    screen.getByRole('button', {name: /submit/i}).click();
+    fireEvent.submit(screen.getByRole("button", { name: /Submit/i }));
 
     expect(handleSubmit).toHaveBeenCalled();
   });
