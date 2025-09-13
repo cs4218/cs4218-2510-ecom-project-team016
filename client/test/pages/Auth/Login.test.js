@@ -4,21 +4,21 @@ import axios from 'axios';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import '@testing-library/jest-dom/extend-expect';
 import toast from 'react-hot-toast';
-import Login from './Login';
+import Login from 'client/src/pages/Auth/Login';
 
 // Mocking axios.post
 jest.mock('axios');
 jest.mock('react-hot-toast');
 
-jest.mock('../../context/auth', () => ({
+jest.mock('client/src/context/auth', () => ({
     useAuth: jest.fn(() => [null, jest.fn()]) // Mock useAuth hook to return null state and a mock function for setAuth
   }));
 
-  jest.mock('../../context/cart', () => ({
+  jest.mock('client/src/context/cart', () => ({
     useCart: jest.fn(() => [null, jest.fn()]) // Mock useCart hook to return null state and a mock function
   }));
-    
-jest.mock('../../context/search', () => ({
+
+jest.mock('client/src/context/search', () => ({
     useSearch: jest.fn(() => [{ keyword: '' }, jest.fn()]) // Mock useSearch hook to return null state and a mock function
   }));  
 
@@ -31,7 +31,7 @@ jest.mock('../../context/search', () => ({
     writable: true,
   });
 
-jest.mock('../../hooks/useCategory', () => jest.fn(() => [])); 
+jest.mock('client/src/hooks/useCategory', () => jest.fn(() => [])); 
 
 window.matchMedia = window.matchMedia || function() {
     return {
