@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 import { render } from "@testing-library/react";
-import { AuthProvider, useAuth } from "./auth";
+import { AuthProvider, useAuth } from "../../src/context/auth";
 import { createContext } from "vm";
 
 // A test component to consume the context

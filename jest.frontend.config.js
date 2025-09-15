@@ -27,6 +27,7 @@ export default {
   collectCoverageFrom: [
     "client/src/components/**/*.js",
     "client/src/pages/**/*.js",
+    "client/src/context/**/*.js",
   ],
   // coverageThreshold: {
   //   global: {
