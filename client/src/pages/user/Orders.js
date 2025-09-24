@@ -31,7 +31,7 @@ const Orders = () => {
             <h1 className="text-center">All Orders</h1>
             {orders?.map((o, i) => {
               return (
-                <div className="border shadow">
+                <div key={o._id} className="border shadow">
                   <table className="table">
                     <thead>
                       <tr>
