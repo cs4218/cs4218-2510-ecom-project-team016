@@ -4,18 +4,18 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import Contact from "../../src/pages/Contact";
+import Contact from "client/src/pages/Contact";
 
-jest.mock("../../src/context/search", () => ({
+jest.mock("client/src/context/search", () => ({
   useSearch: () => [ {}, jest.fn() ],
 }));
-jest.mock("../../src/context/auth", () => ({
+jest.mock("client/src/context/auth", () => ({
   useAuth: () => [null, jest.fn()],
 }));
-jest.mock("../../src/context/cart", () => ({
+jest.mock("client/src/context/cart", () => ({
   useCart: () => [[], jest.fn()],
 }));
-jest.mock("../../src/hooks/useCategory", () => () => []);
+jest.mock("client/src/hooks/useCategory", () => () => []);
 
 describe("Contact Page", () => {
   const setup = () =>

@@ -4,7 +4,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import Policy from "client/src/pages/Policy";
+import About from "client/src/pages/About";
 
 jest.mock("client/src/context/search", () => ({
   useSearch: () => [ {}, jest.fn() ],
@@ -17,24 +17,23 @@ jest.mock("client/src/context/cart", () => ({
 }));
 jest.mock("client/src/hooks/useCategory", () => () => []);
 
-describe("Policy Page", () => {
+describe("About Page", () => {
   const setup = () =>
     render(
       <MemoryRouter>
-        <Policy />
+        <About />
       </MemoryRouter>
     );
 
-  test("renders privacy policy image", () => {
+  test("renders about image", () => {
     setup();
     const img = screen.getByAltText(/contactus/i);
     expect(img).toBeInTheDocument();
-    expect(img).toHaveAttribute("src", "/images/contactus.jpeg");
+    expect(img).toHaveAttribute("src", "/images/about.jpeg");
   });
 
-  test("renders privacy policy text", () => {
+  test("renders about text", () => {
     setup();
-    const policyTexts = screen.getAllByText(/add privacy policy/i);
-    expect(policyTexts.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Add text/i)).toBeInTheDocument();
   });
 });

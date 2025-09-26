@@ -4,7 +4,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import Policy from "client/src/pages/Policy";
+import Pagenotfound from "client/src/pages/Pagenotfound";
 
 jest.mock("client/src/context/search", () => ({
   useSearch: () => [ {}, jest.fn() ],
@@ -17,24 +17,28 @@ jest.mock("client/src/context/cart", () => ({
 }));
 jest.mock("client/src/hooks/useCategory", () => () => []);
 
-describe("Policy Page", () => {
+describe("Pagenotfound Page", () => {
   const setup = () =>
     render(
       <MemoryRouter>
-        <Policy />
+        <Pagenotfound />
       </MemoryRouter>
     );
 
-  test("renders privacy policy image", () => {
+  test("renders 404 title", () => {
     setup();
-    const img = screen.getByAltText(/contactus/i);
-    expect(img).toBeInTheDocument();
-    expect(img).toHaveAttribute("src", "/images/contactus.jpeg");
+    expect(screen.getByText("404")).toBeInTheDocument();
   });
 
-  test("renders privacy policy text", () => {
+  test("renders not found heading", () => {
     setup();
-    const policyTexts = screen.getAllByText(/add privacy policy/i);
-    expect(policyTexts.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Oops ! Page Not Found/i)).toBeInTheDocument();
+  });
+
+  test("renders Go Back link", () => {
+    setup();
+    const link = screen.getByText(/Go Back/i);
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/");
   });
 });
