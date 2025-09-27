@@ -3,7 +3,7 @@
 // Yes, it was asked to write for a component, but these are controllers.
 // There were edits to fix issues.
 import path from "path";
-import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController, productPhotoController, productFiltersController } from "../controllers/productController.js";
+import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController, productPhotoController, productFiltersController, productCountController } from "../controllers/productController.js";
 import productModel from "../models/productModel";
 import fs from "fs";
 import slugify from "slugify";
@@ -1386,5 +1386,222 @@ describe('productFiltersController', () => {
     });
   });
 });
+
+describe('productCountController', () => {
+  let mockReq;
+  let mockRes;
+  let mockQuery;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockReq = {};
+
+    mockRes = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis()
+    };
+
+    mockQuery = {
+      estimatedDocumentCount: jest.fn().mockResolvedValue(0)
+    };
+
+    productModel.find = jest.fn().mockReturnValue(mockQuery);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('Success Cases', () => {
+    it('should return total product count', async () => {
+      const mockTotal = 25;
+      mockQuery.estimatedDocumentCount.mockResolvedValue(mockTotal);
+
+      await productCountController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({});
+      expect(mockQuery.estimatedDocumentCount).toHaveBeenCalledTimes(1);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        total: 25
+      });
+    });
+
+    it('should handle zero product count', async () => {
+      mockQuery.estimatedDocumentCount.mockResolvedValue(0);
+
+      await productCountController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        total: 0
+      });
+    });
+
+    it('should handle large product count', async () => {
+      const largeCount = 999999;
+      mockQuery.estimatedDocumentCount.mockResolvedValue(largeCount);
+
+      await productCountController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        total: 999999
+      });
+    });
+
+    it('should handle single product count', async () => {
+      mockQuery.estimatedDocumentCount.mockResolvedValue(1);
+
+      await productCountController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        total: 1
+      });
+    });
+  });
+
+  describe('Error Cases', () => {
+    it('should handle database connection errors', async () => {
+      const mockError = new Error('Database connection failed');
+      mockQuery.estimatedDocumentCount.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productCountController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        message: 'Error in product count',
+        error: mockError,
+        success: false
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle estimatedDocumentCount method errors', async () => {
+      const mockError = new Error('Count operation failed');
+      mockQuery.estimatedDocumentCount.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productCountController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        message: 'Error in product count',
+        error: mockError,
+        success: false
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle find method errors', async () => {
+      const mockError = new Error('Find operation failed');
+      productModel.find.mockImplementation(() => {
+        throw mockError;
+      });
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productCountController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        message: 'Error in product count',
+        error: mockError,
+        success: false
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle timeout errors', async () => {
+      const mockError = new Error('Operation timed out');
+      mockQuery.estimatedDocumentCount.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productCountController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('Query Validation', () => {
+    it('should call find with empty object', async () => {
+      mockQuery.estimatedDocumentCount.mockResolvedValue(10);
+
+      await productCountController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({});
+      expect(productModel.find).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call estimatedDocumentCount exactly once', async () => {
+      mockQuery.estimatedDocumentCount.mockResolvedValue(5);
+
+      await productCountController(mockReq, mockRes);
+
+      expect(mockQuery.estimatedDocumentCount).toHaveBeenCalledTimes(1);
+      expect(mockQuery.estimatedDocumentCount).toHaveBeenCalledWith();
+    });
+  });
+
+  describe('Response Structure Validation', () => {
+    it('should return exact response structure on success', async () => {
+      mockQuery.estimatedDocumentCount.mockResolvedValue(42);
+
+      await productCountController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        total: 42
+      });
+    });
+
+    it('should return exact error response structure', async () => {
+      const mockError = new Error('Test error');
+      mockQuery.estimatedDocumentCount.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productCountController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        message: 'Error in product count',
+        error: mockError,
+        success: false
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not include extra properties in response', async () => {
+      mockQuery.estimatedDocumentCount.mockResolvedValue(15);
+
+      await productCountController(mockReq, mockRes);
+
+      const responseCall = mockRes.send.mock.calls[0][0];
+      const keys = Object.keys(responseCall);
+
+      expect(keys).toEqual(['success', 'total']);
+      expect(keys).toHaveLength(2);
+    });
+  });
+});
+
 
 
