@@ -3,7 +3,7 @@
 // Yes, it was asked to write for a component, but these are controllers.
 // There were edits to fix issues.
 import path from "path";
-import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController, productPhotoController, productFiltersController, productCountController } from "../controllers/productController.js";
+import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController, productPhotoController, productFiltersController, productCountController, productListController } from "../controllers/productController.js";
 import productModel from "../models/productModel";
 import fs from "fs";
 import slugify from "slugify";
@@ -1602,6 +1602,331 @@ describe('productCountController', () => {
     });
   });
 });
+
+describe('productListController', () => {
+  let mockReq;
+  let mockRes;
+  let mockQuery;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockReq = {
+      params: {}
+    };
+
+    mockRes = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis()
+    };
+
+    mockQuery = {
+      select: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      sort: jest.fn().mockResolvedValue([])
+    };
+
+    productModel.find = jest.fn().mockReturnValue(mockQuery);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('Success Cases', () => {
+    it('should return first page products by default', async () => {
+      const mockProducts = [
+        { _id: '1', name: 'Product 1', createdAt: new Date() },
+        { _id: '2', name: 'Product 2', createdAt: new Date() }
+      ];
+
+      mockQuery.sort.mockResolvedValue(mockProducts);
+
+      await productListController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({});
+      expect(mockQuery.select).toHaveBeenCalledWith('-photo');
+      expect(mockQuery.skip).toHaveBeenCalledWith(0);
+      expect(mockQuery.limit).toHaveBeenCalledWith(6);
+      expect(mockQuery.sort).toHaveBeenCalledWith({ createdAt: -1 });
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: mockProducts
+      });
+    });
+
+    it('should return correct page when page parameter provided', async () => {
+      mockReq.params.page = '3';
+      const mockProducts = [{ _id: '1', name: 'Product 1' }];
+
+      mockQuery.sort.mockResolvedValue(mockProducts);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockQuery.skip).toHaveBeenCalledWith(12); // (3-1) * 6 = 12
+      expect(mockQuery.limit).toHaveBeenCalledWith(6);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: mockProducts
+      });
+    });
+
+    it('should handle second page correctly', async () => {
+      mockReq.params.page = '2';
+      const mockProducts = [];
+
+      mockQuery.sort.mockResolvedValue(mockProducts);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockQuery.skip).toHaveBeenCalledWith(6); // (2-1) * 6 = 6
+      expect(mockQuery.limit).toHaveBeenCalledWith(6);
+    });
+
+    it('should handle page 1 explicitly', async () => {
+      mockReq.params.page = '1';
+      const mockProducts = [];
+
+      mockQuery.sort.mockResolvedValue(mockProducts);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockQuery.skip).toHaveBeenCalledWith(0); // (1-1) * 6 = 0
+    });
+
+    it('should return empty array when no products found', async () => {
+      mockReq.params.page = '10';
+      mockQuery.sort.mockResolvedValue([]);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: []
+      });
+    });
+
+    it('should limit to exactly 6 products per page', async () => {
+      const mockProducts = Array.from({ length: 6 }, (_, i) => ({
+        _id: `${i + 1}`,
+        name: `Product ${i + 1}`
+      }));
+
+      mockQuery.sort.mockResolvedValue(mockProducts);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockQuery.limit).toHaveBeenCalledWith(6);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: mockProducts
+      });
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle page 0 as valid input', async () => {
+      mockReq.params.page = '0';
+      mockQuery.sort.mockResolvedValue([]);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockQuery.skip).toHaveBeenCalledWith(-6); // (0-1) * 6 = -6
+    });
+
+    it('should handle negative page numbers', async () => {
+      mockReq.params.page = '-1';
+      mockQuery.sort.mockResolvedValue([]);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockQuery.skip).toHaveBeenCalledWith(-12); // (-1-1) * 6 = -12
+    });
+
+    it('should handle string page numbers', async () => {
+      mockReq.params.page = 'abc';
+      mockQuery.sort.mockResolvedValue([]);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockQuery.skip).toHaveBeenCalledWith(NaN); // ('abc'-1) * 6 = NaN
+    });
+
+    it('should handle undefined page parameter', async () => {
+      mockReq.params.page = undefined;
+      mockQuery.sort.mockResolvedValue([]);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockQuery.skip).toHaveBeenCalledWith(0); // default page 1: (1-1) * 6 = 0
+    });
+
+    it('should handle null page parameter', async () => {
+      mockReq.params.page = null;
+      mockQuery.sort.mockResolvedValue([]);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockQuery.skip).toHaveBeenCalledWith(0); // null is falsy, defaults to page 1
+    });
+
+    it('should handle empty string page parameter', async () => {
+      mockReq.params.page = '';
+      mockQuery.sort.mockResolvedValue([]);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockQuery.skip).toHaveBeenCalledWith(0); // empty string is falsy, defaults to page 1
+    });
+
+    it('should handle decimal page numbers', async () => {
+      mockReq.params.page = '2.5';
+      mockQuery.sort.mockResolvedValue([]);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockQuery.skip).toHaveBeenCalledWith(9); // (2.5-1) * 6 = 9
+    });
+  });
+
+  describe('Error Cases', () => {
+    it('should handle database query errors', async () => {
+      const mockError = new Error('Database connection failed');
+      mockQuery.sort.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productListController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'error in per page ctrl',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle find method errors', async () => {
+      const mockError = new Error('Find operation failed');
+      productModel.find.mockImplementation(() => {
+        throw mockError;
+      });
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productListController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle sort method errors', async () => {
+      const mockError = new Error('Sort operation failed');
+      mockQuery.sort.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'error in per page ctrl',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('Query Chain Validation', () => {
+    it('should call query methods in correct order', async () => {
+      mockReq.params.page = '2';
+      mockQuery.sort.mockResolvedValue([]);
+
+      await productListController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({});
+      expect(mockQuery.select).toHaveBeenCalledWith('-photo');
+      expect(mockQuery.skip).toHaveBeenCalledWith(6);
+      expect(mockQuery.limit).toHaveBeenCalledWith(6);
+      expect(mockQuery.sort).toHaveBeenCalledWith({ createdAt: -1 });
+    });
+
+    it('should call each query method exactly once', async () => {
+      mockQuery.sort.mockResolvedValue([]);
+
+      await productListController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledTimes(1);
+      expect(mockQuery.select).toHaveBeenCalledTimes(1);
+      expect(mockQuery.skip).toHaveBeenCalledTimes(1);
+      expect(mockQuery.limit).toHaveBeenCalledTimes(1);
+      expect(mockQuery.sort).toHaveBeenCalledTimes(1);
+    });
+
+    it('should exclude photo field from selection', async () => {
+      mockQuery.sort.mockResolvedValue([]);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockQuery.select).toHaveBeenCalledWith('-photo');
+    });
+
+    it('should sort by createdAt in descending order', async () => {
+      mockQuery.sort.mockResolvedValue([]);
+
+      await productListController(mockReq, mockRes);
+
+      expect(mockQuery.sort).toHaveBeenCalledWith({ createdAt: -1 });
+    });
+  });
+
+  describe('Pagination Logic Validation', () => {
+    it('should calculate skip correctly for various pages', async () => {
+      const testCases = [
+        { page: '1', expectedSkip: 0 },
+        { page: '2', expectedSkip: 6 },
+        { page: '3', expectedSkip: 12 },
+        { page: '5', expectedSkip: 24 },
+        { page: '10', expectedSkip: 54 }
+      ];
+
+      for (const testCase of testCases) {
+        jest.clearAllMocks();
+        mockReq.params.page = testCase.page;
+        mockQuery.sort.mockResolvedValue([]);
+
+        await productListController(mockReq, mockRes);
+
+        expect(mockQuery.skip).toHaveBeenCalledWith(testCase.expectedSkip);
+      }
+    });
+
+    it('should always use perPage value of 6', async () => {
+      const pages = ['1', '2', '3', '10'];
+
+      for (const page of pages) {
+        jest.clearAllMocks();
+        mockReq.params.page = page;
+        mockQuery.sort.mockResolvedValue([]);
+
+        await productListController(mockReq, mockRes);
+
+        expect(mockQuery.limit).toHaveBeenCalledWith(6);
+      }
+    });
+  });
+});
+
 
 
 
