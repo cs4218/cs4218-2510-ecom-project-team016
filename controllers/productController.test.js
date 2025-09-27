@@ -3,7 +3,7 @@
 // Yes, it was asked to write for a component, but these are controllers.
 // There were edits to fix issues.
 import path from "path";
-import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController, productPhotoController, productFiltersController, productCountController, productListController, searchProductController } from "../controllers/productController.js";
+import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController, productPhotoController, productFiltersController, productCountController, productListController, searchProductController, realtedProductController } from "../controllers/productController.js";
 import productModel from "../models/productModel";
 import fs from "fs";
 import slugify from "slugify";
@@ -2277,6 +2277,412 @@ describe('searchProductController', () => {
   });
 });
 
+describe('realtedProductController', () => {
+  let mockReq;
+  let mockRes;
+  let mockQuery;
 
+  beforeEach(() => {
+    jest.clearAllMocks();
 
+    mockReq = {
+      params: {
+        pid: '507f1f77bcf86cd799439011',
+        cid: '507f1f77bcf86cd799439012'
+      }
+    };
 
+    mockRes = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis()
+    };
+
+    mockQuery = {
+      select: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      populate: jest.fn().mockResolvedValue([])
+    };
+
+    productModel.find = jest.fn().mockReturnValue(mockQuery);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('Success Cases', () => {
+    it('should return related products excluding current product', async () => {
+      const mockProducts = [
+        { _id: '1', name: 'Related Product 1', category: { name: 'Electronics' } },
+        { _id: '2', name: 'Related Product 2', category: { name: 'Electronics' } }
+      ];
+
+      mockQuery.populate.mockResolvedValue(mockProducts);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: '507f1f77bcf86cd799439012',
+        _id: { $ne: '507f1f77bcf86cd799439011' }
+      });
+      expect(mockQuery.select).toHaveBeenCalledWith('-photo');
+      expect(mockQuery.limit).toHaveBeenCalledWith(3);
+      expect(mockQuery.populate).toHaveBeenCalledWith('category');
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: mockProducts
+      });
+    });
+
+    it('should limit results to exactly 3 products', async () => {
+      const mockProducts = [
+        { _id: '1', name: 'Product 1' },
+        { _id: '2', name: 'Product 2' },
+        { _id: '3', name: 'Product 3' }
+      ];
+
+      mockQuery.populate.mockResolvedValue(mockProducts);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(mockQuery.limit).toHaveBeenCalledWith(3);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: mockProducts
+      });
+    });
+
+    it('should return empty array when no related products found', async () => {
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: []
+      });
+    });
+
+    it('should handle single related product', async () => {
+      const mockProducts = [
+        { _id: '1', name: 'Single Related Product', category: { name: 'Books' } }
+      ];
+
+      mockQuery.populate.mockResolvedValue(mockProducts);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: mockProducts
+      });
+    });
+
+    it('should populate category field correctly', async () => {
+      const mockProducts = [
+        { 
+          _id: '1', 
+          name: 'Product 1',
+          category: { 
+            _id: '507f1f77bcf86cd799439012',
+            name: 'Electronics',
+            slug: 'electronics'
+          }
+        }
+      ];
+
+      mockQuery.populate.mockResolvedValue(mockProducts);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(mockQuery.populate).toHaveBeenCalledWith('category');
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: mockProducts
+      });
+    });
+
+    it('should exclude photo field from results', async () => {
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(mockQuery.select).toHaveBeenCalledWith('-photo');
+    });
+  });
+
+  describe('Parameter Handling', () => {
+    it('should handle different product and category IDs', async () => {
+      mockReq.params.pid = '607f1f77bcf86cd799439013';
+      mockReq.params.cid = '607f1f77bcf86cd799439014';
+
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: '607f1f77bcf86cd799439014',
+        _id: { $ne: '607f1f77bcf86cd799439013' }
+      });
+    });
+
+    it('should handle string parameter values', async () => {
+      mockReq.params.pid = 'product123';
+      mockReq.params.cid = 'category456';
+
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: 'category456',
+        _id: { $ne: 'product123' }
+      });
+    });
+
+    it('should handle undefined parameters', async () => {
+      mockReq.params.pid = undefined;
+      mockReq.params.cid = undefined;
+
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: undefined,
+        _id: { $ne: undefined }
+      });
+    });
+
+    it('should handle null parameters', async () => {
+      mockReq.params.pid = null;
+      mockReq.params.cid = null;
+
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: null,
+        _id: { $ne: null }
+      });
+    });
+
+    it('should handle empty string parameters', async () => {
+      mockReq.params.pid = '';
+      mockReq.params.cid = '';
+
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: '',
+        _id: { $ne: '' }
+      });
+    });
+  });
+
+  describe('Error Cases', () => {
+    it('should handle database query errors', async () => {
+      const mockError = new Error('Database connection failed');
+      mockQuery.populate.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'error while geting related product',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle find method errors', async () => {
+      const mockError = new Error('Invalid ObjectId format');
+      productModel.find.mockImplementation(() => {
+        throw mockError;
+      });
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'error while geting related product',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle populate method errors', async () => {
+      const mockError = new Error('Population failed');
+      mockQuery.populate.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'error while geting related product',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle select method errors', async () => {
+      const mockError = new Error('Select operation failed');
+      mockQuery.select.mockImplementation(() => {
+        throw mockError;
+      });
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle limit method errors', async () => {
+      const mockError = new Error('Limit operation failed');
+      mockQuery.limit.mockImplementation(() => {
+        throw mockError;
+      });
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('Query Chain Validation', () => {
+    it('should call query methods in correct order', async () => {
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: '507f1f77bcf86cd799439012',
+        _id: { $ne: '507f1f77bcf86cd799439011' }
+      });
+      expect(mockQuery.select).toHaveBeenCalledWith('-photo');
+      expect(mockQuery.limit).toHaveBeenCalledWith(3);
+      expect(mockQuery.populate).toHaveBeenCalledWith('category');
+    });
+
+    it('should call each query method exactly once', async () => {
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledTimes(1);
+      expect(mockQuery.select).toHaveBeenCalledTimes(1);
+      expect(mockQuery.limit).toHaveBeenCalledTimes(1);
+      expect(mockQuery.populate).toHaveBeenCalledTimes(1);
+    });
+
+    it('should build correct MongoDB query with $ne operator', async () => {
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      const findCall = productModel.find.mock.calls[0][0];
+      expect(findCall).toEqual({
+        category: '507f1f77bcf86cd799439012',
+        _id: { $ne: '507f1f77bcf86cd799439011' }
+      });
+    });
+  });
+
+  describe('Response Format Validation', () => {
+    it('should return exact response structure on success', async () => {
+      const mockProducts = [{ _id: '1', name: 'Test Product' }];
+      mockQuery.populate.mockResolvedValue(mockProducts);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: mockProducts
+      });
+    });
+
+    it('should return exact error response structure', async () => {
+      const mockError = new Error('Test error');
+      mockQuery.populate.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'error while geting related product',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not include extra properties in success response', async () => {
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      const responseCall = mockRes.send.mock.calls[0][0];
+      const keys = Object.keys(responseCall);
+
+      expect(keys).toEqual(['success', 'products']);
+      expect(keys).toHaveLength(2);
+    });
+  });
+
+  describe('Business Logic Validation', () => {
+    it('should exclude the current product from results', async () => {
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      const findQuery = productModel.find.mock.calls[0][0];
+      expect(findQuery._id.$ne).toBe('507f1f77bcf86cd799439011');
+    });
+
+    it('should only return products from the same category', async () => {
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      const findQuery = productModel.find.mock.calls[0][0];
+      expect(findQuery.category).toBe('507f1f77bcf86cd799439012');
+    });
+
+    it('should limit results to maximum 3 products for performance', async () => {
+      mockQuery.populate.mockResolvedValue([]);
+
+      await realtedProductController(mockReq, mockRes);
+
+      expect(mockQuery.limit).toHaveBeenCalledWith(3);
+    });
+  });
+});
