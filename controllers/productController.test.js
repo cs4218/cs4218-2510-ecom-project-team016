@@ -3,7 +3,7 @@
 // Yes, it was asked to write for a component, but these are controllers.
 // There were edits to fix issues.
 import path from "path";
-import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController, productPhotoController, productFiltersController, productCountController, productListController } from "../controllers/productController.js";
+import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController, productPhotoController, productFiltersController, productCountController, productListController, searchProductController } from "../controllers/productController.js";
 import productModel from "../models/productModel";
 import fs from "fs";
 import slugify from "slugify";
@@ -1923,6 +1923,356 @@ describe('productListController', () => {
 
         expect(mockQuery.limit).toHaveBeenCalledWith(6);
       }
+    });
+  });
+});
+
+describe('searchProductController', () => {
+  let mockReq;
+  let mockRes;
+  let mockQuery;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockReq = {
+      params: {
+        keyword: 'test'
+      }
+    };
+
+    mockRes = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis()
+    };
+
+    mockQuery = {
+      select: jest.fn().mockResolvedValue([])
+    };
+
+    productModel.find = jest.fn().mockReturnValue(mockQuery);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('Success Cases', () => {
+    it('should search products by keyword in name and description', async () => {
+      const mockProducts = [
+        { _id: '1', name: 'Test Product', description: 'A test item' },
+        { _id: '2', name: 'Another Item', description: 'Contains test keyword' }
+      ];
+
+      mockQuery.select.mockResolvedValue(mockProducts);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        $or: [
+          { name: { $regex: 'test', $options: 'i' } },
+          { description: { $regex: 'test', $options: 'i' } }
+        ]
+      });
+      expect(mockQuery.select).toHaveBeenCalledWith('-photo');
+      expect(mockRes.json).toHaveBeenCalledWith(mockProducts);
+    });
+
+    it('should handle case insensitive search', async () => {
+      mockReq.params.keyword = 'LAPTOP';
+      const mockProducts = [
+        { _id: '1', name: 'laptop computer', description: 'Gaming laptop' }
+      ];
+
+      mockQuery.select.mockResolvedValue(mockProducts);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        $or: [
+          { name: { $regex: 'LAPTOP', $options: 'i' } },
+          { description: { $regex: 'LAPTOP', $options: 'i' } }
+        ]
+      });
+      expect(mockRes.json).toHaveBeenCalledWith(mockProducts);
+    });
+
+    it('should return empty array when no products match', async () => {
+      mockReq.params.keyword = 'nonexistent';
+      mockQuery.select.mockResolvedValue([]);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(mockRes.json).toHaveBeenCalledWith([]);
+    });
+
+    it('should handle single character search', async () => {
+      mockReq.params.keyword = 'a';
+      const mockProducts = [
+        { _id: '1', name: 'Apple', description: 'Fruit' }
+      ];
+
+      mockQuery.select.mockResolvedValue(mockProducts);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        $or: [
+          { name: { $regex: 'a', $options: 'i' } },
+          { description: { $regex: 'a', $options: 'i' } }
+        ]
+      });
+    });
+
+    it('should handle multi-word search terms', async () => {
+      mockReq.params.keyword = 'gaming laptop';
+      const mockProducts = [
+        { _id: '1', name: 'Gaming Laptop Pro', description: 'High-end gaming laptop' }
+      ];
+
+      mockQuery.select.mockResolvedValue(mockProducts);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        $or: [
+          { name: { $regex: 'gaming laptop', $options: 'i' } },
+          { description: { $regex: 'gaming laptop', $options: 'i' } }
+        ]
+      });
+    });
+
+    it('should exclude photo field from results', async () => {
+      mockQuery.select.mockResolvedValue([]);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(mockQuery.select).toHaveBeenCalledWith('-photo');
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle empty keyword', async () => {
+      mockReq.params.keyword = '';
+      mockQuery.select.mockResolvedValue([]);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        $or: [
+          { name: { $regex: '', $options: 'i' } },
+          { description: { $regex: '', $options: 'i' } }
+        ]
+      });
+    });
+
+    it('should handle special characters in keyword', async () => {
+      mockReq.params.keyword = '$100 deal!';
+      mockQuery.select.mockResolvedValue([]);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        $or: [
+          { name: { $regex: '$100 deal!', $options: 'i' } },
+          { description: { $regex: '$100 deal!', $options: 'i' } }
+        ]
+      });
+    });
+
+    it('should handle regex special characters', async () => {
+      mockReq.params.keyword = 'product.*test';
+      mockQuery.select.mockResolvedValue([]);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        $or: [
+          { name: { $regex: 'product.*test', $options: 'i' } },
+          { description: { $regex: 'product.*test', $options: 'i' } }
+        ]
+      });
+    });
+
+    it('should handle numeric keywords', async () => {
+      mockReq.params.keyword = '2023';
+      mockQuery.select.mockResolvedValue([]);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        $or: [
+          { name: { $regex: '2023', $options: 'i' } },
+          { description: { $regex: '2023', $options: 'i' } }
+        ]
+      });
+    });
+
+    it('should handle undefined keyword', async () => {
+      mockReq.params.keyword = undefined;
+      mockQuery.select.mockResolvedValue([]);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        $or: [
+          { name: { $regex: undefined, $options: 'i' } },
+          { description: { $regex: undefined, $options: 'i' } }
+        ]
+      });
+    });
+
+    it('should handle whitespace-only keyword', async () => {
+      mockReq.params.keyword = '   ';
+      mockQuery.select.mockResolvedValue([]);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        $or: [
+          { name: { $regex: '   ', $options: 'i' } },
+          { description: { $regex: '   ', $options: 'i' } }
+        ]
+      });
+    });
+  });
+
+  describe('Error Cases', () => {
+    it('should handle database query errors', async () => {
+      const mockError = new Error('Database connection failed');
+      mockQuery.select.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Error In Search Product API',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle find method errors', async () => {
+      const mockError = new Error('Invalid regex pattern');
+      productModel.find.mockImplementation(() => {
+        throw mockError;
+      });
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Error In Search Product API',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle select method errors', async () => {
+      const mockError = new Error('Select operation failed');
+      mockQuery.select.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Error In Search Product API',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle malformed regex errors', async () => {
+      mockReq.params.keyword = '[invalid-regex';
+      const mockError = new Error('Invalid regular expression');
+      mockQuery.select.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('Query Validation', () => {
+    it('should build correct MongoDB $or query', async () => {
+      mockReq.params.keyword = 'smartphone';
+      mockQuery.select.mockResolvedValue([]);
+
+      await searchProductController(mockReq, mockRes);
+
+      const expectedQuery = {
+        $or: [
+          { name: { $regex: 'smartphone', $options: 'i' } },
+          { description: { $regex: 'smartphone', $options: 'i' } }
+        ]
+      };
+
+      expect(productModel.find).toHaveBeenCalledWith(expectedQuery);
+    });
+
+    it('should use case insensitive regex options', async () => {
+      mockQuery.select.mockResolvedValue([]);
+
+      await searchProductController(mockReq, mockRes);
+
+      const findCall = productModel.find.mock.calls[0][0];
+      expect(findCall.$or[0].name.$options).toBe('i');
+      expect(findCall.$or[1].description.$options).toBe('i');
+    });
+
+    it('should search in both name and description fields', async () => {
+      mockQuery.select.mockResolvedValue([]);
+
+      await searchProductController(mockReq, mockRes);
+
+      const findCall = productModel.find.mock.calls[0][0];
+      expect(findCall.$or).toHaveLength(2);
+      expect(findCall.$or[0]).toHaveProperty('name');
+      expect(findCall.$or[1]).toHaveProperty('description');
+    });
+  });
+
+  describe('Response Format Validation', () => {
+    it('should return results directly with res.json (not wrapped)', async () => {
+      const mockProducts = [{ _id: '1', name: 'Test' }];
+      mockQuery.select.mockResolvedValue(mockProducts);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(mockRes.json).toHaveBeenCalledWith(mockProducts);
+      expect(mockRes.json).toHaveBeenCalledTimes(1);
+      expect(mockRes.send).not.toHaveBeenCalledWith(expect.objectContaining({
+        success: true,
+        products: expect.anything()
+      }));
+    });
+
+    it('should not call res.status on success', async () => {
+      mockQuery.select.mockResolvedValue([]);
+
+      await searchProductController(mockReq, mockRes);
+
+      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.json).toHaveBeenCalled();
     });
   });
 });
