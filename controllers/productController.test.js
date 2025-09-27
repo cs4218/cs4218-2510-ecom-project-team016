@@ -3,7 +3,7 @@
 // Yes, it was asked to write for a component, but these are controllers.
 // There were edits to fix issues.
 import path from "path";
-import { createProductController, updateProductController, deleteProductController } from "../controllers/productController.js";
+import { createProductController, updateProductController, deleteProductController, getProductController } from "../controllers/productController.js";
 import productModel from "../models/productModel";
 import fs from "fs";
 import slugify from "slugify";
@@ -355,5 +355,192 @@ describe("updateProductController", () => {
     expect(res.send).toHaveBeenCalledWith(
       expect.objectContaining({ success: false, message: "Error in Updating product" })
     );
+  });
+});
+
+describe('getProductController', () => {
+  let mockReq;
+  let mockRes;
+  let mockQuery;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockReq = {};
+
+    mockRes = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis()
+    };
+
+    mockQuery = {
+      populate: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      sort: jest.fn().mockResolvedValue([])
+    };
+
+    productModel.find = jest.fn().mockReturnValue(mockQuery);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('Success Cases', () => {
+    it('should return products with correct response format', async () => {
+      const mockProducts = [
+        { _id: '1', name: 'Product 1', category: { name: 'Category 1' } },
+        { _id: '2', name: 'Product 2', category: { name: 'Category 2' } }
+      ];
+
+      mockQuery.sort.mockResolvedValue(mockProducts);
+
+      await getProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({});
+      expect(mockQuery.populate).toHaveBeenCalledWith('category');
+      expect(mockQuery.select).toHaveBeenCalledWith('-photo');
+      expect(mockQuery.limit).toHaveBeenCalledWith(12);
+      expect(mockQuery.sort).toHaveBeenCalledWith({ createdAt: -1 });
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        countTotal: 2,
+        message: 'All Products',
+        products: mockProducts
+      });
+    });
+
+    it('should handle empty product list', async () => {
+      const mockProducts = [];
+      mockQuery.sort.mockResolvedValue(mockProducts);
+
+      await getProductController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        countTotal: 0,
+        message: 'All Products',
+        products: []
+      });
+    });
+
+    it('should limit results to exactly 12 products', async () => {
+      const mockProducts = Array.from({ length: 12 }, (_, i) => ({
+        _id: `${i + 1}`,
+        name: `Product ${i + 1}`,
+        category: { name: `Category ${i + 1}` }
+      }));
+
+      mockQuery.sort.mockResolvedValue(mockProducts);
+
+      await getProductController(mockReq, mockRes);
+
+      expect(mockQuery.limit).toHaveBeenCalledWith(12);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        countTotal: 12,
+        message: 'All Products',
+        products: mockProducts
+      });
+    });
+  });
+
+  describe('Error Cases', () => {
+    it('should handle database query errors', async () => {
+      const mockError = new Error('Database connection failed');
+      mockQuery.sort.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await getProductController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Erorr in getting products',
+        error: 'Database connection failed'
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle populate method errors', async () => {
+      const mockError = new Error('Population failed');
+      mockQuery.populate.mockImplementation(() => {
+        throw mockError;
+      });
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await getProductController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Erorr in getting products',
+        error: 'Population failed'
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle errors without message property', async () => {
+      const mockError = 'String error without message property';
+      mockQuery.sort.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await getProductController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Erorr in getting products',
+        error: undefined
+      });
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('Query Chain Validation', () => {
+    it('should call query methods in correct order', async () => {
+      const mockProducts = [{ _id: '1', name: 'Test Product' }];
+      mockQuery.sort.mockResolvedValue(mockProducts);
+
+      await getProductController(mockReq, mockRes);
+
+      const findCall = productModel.find.mock.calls[0];
+      const populateCall = mockQuery.populate.mock.calls[0];
+      const selectCall = mockQuery.select.mock.calls[0];
+      const limitCall = mockQuery.limit.mock.calls[0];
+      const sortCall = mockQuery.sort.mock.calls[0];
+
+      expect(findCall).toEqual([{}]);
+      expect(populateCall).toEqual(['category']);
+      expect(selectCall).toEqual(['-photo']);
+      expect(limitCall).toEqual([12]);
+      expect(sortCall).toEqual([{ createdAt: -1 }]);
+    });
+
+    it('should ensure all query methods are called exactly once', async () => {
+      const mockProducts = [];
+      mockQuery.sort.mockResolvedValue(mockProducts);
+
+      await getProductController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledTimes(1);
+      expect(mockQuery.populate).toHaveBeenCalledTimes(1);
+      expect(mockQuery.select).toHaveBeenCalledTimes(1);
+      expect(mockQuery.limit).toHaveBeenCalledTimes(1);
+      expect(mockQuery.sort).toHaveBeenCalledTimes(1);
+    });
   });
 });
