@@ -3,7 +3,7 @@
 // Yes, it was asked to write for a component, but these are controllers.
 // There were edits to fix issues.
 import path from "path";
-import { createProductController, updateProductController, deleteProductController, getProductController } from "../controllers/productController.js";
+import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController } from "../controllers/productController.js";
 import productModel from "../models/productModel";
 import fs from "fs";
 import slugify from "slugify";
@@ -544,3 +544,261 @@ describe('getProductController', () => {
     });
   });
 });
+
+describe('getSingleProductController', () => {
+  let mockReq;
+  let mockRes;
+  let mockQuery;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockReq = {
+      params: {
+        slug: 'test-product-slug'
+      }
+    };
+
+    mockRes = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis()
+    };
+
+    mockQuery = {
+      select: jest.fn().mockReturnThis(),
+      populate: jest.fn().mockResolvedValue(null)
+    };
+
+    productModel.findOne = jest.fn().mockReturnValue(mockQuery);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('Success Cases', () => {
+    it('should return product when found by slug', async () => {
+      const mockProduct = {
+        _id: '1',
+        name: 'Test Product',
+        slug: 'test-product-slug',
+        description: 'Test description',
+        price: 99.99,
+        category: {
+          _id: 'cat1',
+          name: 'Test Category'
+        }
+      };
+
+      mockQuery.populate.mockResolvedValue(mockProduct);
+
+      await getSingleProductController(mockReq, mockRes);
+
+      expect(productModel.findOne).toHaveBeenCalledWith({ slug: 'test-product-slug' });
+      expect(mockQuery.select).toHaveBeenCalledWith('-photo');
+      expect(mockQuery.populate).toHaveBeenCalledWith('category');
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        message: 'Single Product Fetched',
+        product: mockProduct
+      });
+    });
+
+    it('should return null when product not found', async () => {
+      mockQuery.populate.mockResolvedValue(null);
+
+      await getSingleProductController(mockReq, mockRes);
+
+      expect(productModel.findOne).toHaveBeenCalledWith({ slug: 'test-product-slug' });
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        message: 'Single Product Fetched',
+        product: null
+      });
+    });
+
+    it('should handle different slug values', async () => {
+      mockReq.params.slug = 'another-product-123';
+      const mockProduct = { _id: '2', name: 'Another Product', slug: 'another-product-123' };
+      mockQuery.populate.mockResolvedValue(mockProduct);
+
+      await getSingleProductController(mockReq, mockRes);
+
+      expect(productModel.findOne).toHaveBeenCalledWith({ slug: 'another-product-123' });
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        message: 'Single Product Fetched',
+        product: mockProduct
+      });
+    });
+
+    it('should populate category field correctly', async () => {
+      const mockProduct = {
+        _id: '1',
+        name: 'Test Product',
+        category: {
+          _id: 'cat1',
+          name: 'Electronics',
+          slug: 'electronics'
+        }
+      };
+      mockQuery.populate.mockResolvedValue(mockProduct);
+
+      await getSingleProductController(mockReq, mockRes);
+
+      expect(mockQuery.populate).toHaveBeenCalledWith('category');
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        message: 'Single Product Fetched',
+        product: mockProduct
+      });
+    });
+  });
+
+  describe('Error Cases', () => {
+    it('should handle database query errors', async () => {
+      const mockError = new Error('Database connection failed');
+      mockQuery.populate.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await getSingleProductController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Eror while getitng single product',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle findOne method errors', async () => {
+      const mockError = new Error('Invalid slug format');
+      productModel.findOne.mockImplementation(() => {
+        throw mockError;
+      });
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await getSingleProductController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Eror while getitng single product',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle populate method errors', async () => {
+      const mockError = new Error('Population failed for category');
+      mockQuery.populate.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await getSingleProductController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Eror while getitng single product',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle missing slug parameter', async () => {
+      mockReq.params.slug = undefined;
+      mockQuery.populate.mockResolvedValue(null);
+
+      await getSingleProductController(mockReq, mockRes);
+
+      expect(productModel.findOne).toHaveBeenCalledWith({ slug: undefined });
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        message: 'Single Product Fetched',
+        product: null
+      });
+    });
+  });
+
+  describe('Query Chain Validation', () => {
+    it('should call query methods in correct order', async () => {
+      const mockProduct = { _id: '1', name: 'Test Product' };
+      mockQuery.populate.mockResolvedValue(mockProduct);
+
+      await getSingleProductController(mockReq, mockRes);
+
+      const findOneCall = productModel.findOne.mock.calls[0];
+      const selectCall = mockQuery.select.mock.calls[0];
+      const populateCall = mockQuery.populate.mock.calls[0];
+
+      expect(findOneCall).toEqual([{ slug: 'test-product-slug' }]);
+      expect(selectCall).toEqual(['-photo']);
+      expect(populateCall).toEqual(['category']);
+    });
+
+    it('should ensure all query methods are called exactly once', async () => {
+      mockQuery.populate.mockResolvedValue(null);
+
+      await getSingleProductController(mockReq, mockRes);
+
+      expect(productModel.findOne).toHaveBeenCalledTimes(1);
+      expect(mockQuery.select).toHaveBeenCalledTimes(1);
+      expect(mockQuery.populate).toHaveBeenCalledTimes(1);
+    });
+
+    it('should exclude photo field from selection', async () => {
+      mockQuery.populate.mockResolvedValue({ _id: '1', name: 'Test' });
+
+      await getSingleProductController(mockReq, mockRes);
+
+      expect(mockQuery.select).toHaveBeenCalledWith('-photo');
+    });
+  });
+
+  describe('Request Parameter Handling', () => {
+    it('should handle special characters in slug', async () => {
+      mockReq.params.slug = 'product-with-special-chars-&-symbols';
+      mockQuery.populate.mockResolvedValue(null);
+
+      await getSingleProductController(mockReq, mockRes);
+
+      expect(productModel.findOne).toHaveBeenCalledWith({ 
+        slug: 'product-with-special-chars-&-symbols' 
+      });
+    });
+
+    it('should handle empty string slug', async () => {
+      mockReq.params.slug = '';
+      mockQuery.populate.mockResolvedValue(null);
+
+      await getSingleProductController(mockReq, mockRes);
+
+      expect(productModel.findOne).toHaveBeenCalledWith({ slug: '' });
+    });
+
+    it('should handle numeric slug values', async () => {
+      mockReq.params.slug = '12345';
+      mockQuery.populate.mockResolvedValue(null);
+
+      await getSingleProductController(mockReq, mockRes);
+
+      expect(productModel.findOne).toHaveBeenCalledWith({ slug: '12345' });
+    });
+  });
+});
+
