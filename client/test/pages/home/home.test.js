@@ -73,6 +73,39 @@ describe('HomePage', () => {
     mockedToast.success = jest.fn();
   });
 
+  test('handles error in getAllCategory and logs to console', async () => {
+    // Mock console.log to track calls
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  
+    // Mock axios to throw an error
+    const testError = new Error('Network error');
+    mockedAxios.get.mockImplementation((url) => {
+      if (url.includes('/category/get-category')) {
+        return Promise.reject(testError);
+      }
+      // Return successful responses for other calls
+      if (url.includes('/product/product-count')) {
+        return Promise.resolve({ data: { total: 2 } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+  
+    render(
+      <TestWrapper>
+        <HomePage />
+      </TestWrapper>
+    );
+  
+    // Wait for the async call to complete
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(testError);
+    });
+  
+    // Clean up
+    consoleSpy.mockRestore();
+  });
+  
+
   test('renders HomePage with initial elements', async () => {
     render(
       <TestWrapper>
@@ -200,6 +233,47 @@ describe('HomePage', () => {
       expect(mockedAxios.get).toHaveBeenCalledWith('/api/v1/product/product-list/2');
     });
   });
+
+  test('handles error in getAllProducts, sets loading to false and logs error', async () => {
+    // Mock console.log to track calls
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  
+    // Mock axios to throw error for product-list but succeed for others
+    const testError = new Error('Failed to fetch products');
+    mockedAxios.get.mockImplementation((url) => {
+      if (url.includes('/category/get-category')) {
+        return Promise.resolve({
+          data: { success: true, category: mockCategories }
+        });
+      }
+      if (url.includes('/product/product-count')) {
+        return Promise.resolve({ data: { total: 2 } });
+      }
+      if (url.includes('/product/product-list')) {
+        return Promise.reject(testError);
+      }
+      return Promise.reject(new Error('Unknown URL'));
+    });
+  
+    render(
+      <TestWrapper>
+        <HomePage />
+      </TestWrapper>
+    );
+  
+    // Wait for the async operations to complete
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(testError);
+    });
+  
+    // Verify that no products are displayed (empty state)
+    expect(screen.queryByText('Test Product 1')).not.toBeInTheDocument();
+    expect(screen.queryByText('Test Product 2')).not.toBeInTheDocument();
+  
+    // Clean up
+    consoleSpy.mockRestore();
+  });
+  
 
   test('handles reset filters', async () => {
     const mockReload = jest.fn();
