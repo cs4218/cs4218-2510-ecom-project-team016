@@ -3,13 +3,15 @@
 // Yes, it was asked to write for a component, but these are controllers.
 // There were edits to fix issues.
 import path from "path";
-import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController, productPhotoController, productFiltersController, productCountController, productListController, searchProductController, realtedProductController } from "../controllers/productController.js";
+import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController, productPhotoController, productFiltersController, productCountController, productListController, searchProductController, realtedProductController, productCategoryController } from "../controllers/productController.js";
 import productModel from "../models/productModel";
 import fs from "fs";
 import slugify from "slugify";
 import { da } from "date-fns/locale";
+import categoryModel from "../models/categoryModel.js";
 
-jest.mock("../models/productModel");
+jest.mock("../models/productModel.js");
+jest.mock("../models/categoryModel.js");
 jest.mock("fs", () => ({
   readFileSync: jest.fn(),
 }));
@@ -2683,6 +2685,430 @@ describe('realtedProductController', () => {
       await realtedProductController(mockReq, mockRes);
 
       expect(mockQuery.limit).toHaveBeenCalledWith(3);
+    });
+  });
+});
+
+jest.mock("../models/productModel.js");
+jest.mock("../models/categoryModel.js");
+
+describe('productCategoryController', () => {
+  let mockReq;
+  let mockRes;
+  let mockQuery;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockReq = {
+      params: {
+        slug: 'electronics'
+      }
+    };
+
+    mockRes = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis()
+    };
+
+    mockQuery = {
+      populate: jest.fn().mockResolvedValue([])
+    };
+
+    categoryModel.findOne = jest.fn().mockResolvedValue(null);
+    productModel.find = jest.fn().mockReturnValue(mockQuery);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('Success Cases', () => {
+    it('should return category and products when category exists', async () => {
+      const mockCategory = {
+        _id: '507f1f77bcf86cd799439011',
+        name: 'Electronics',
+        slug: 'electronics'
+      };
+
+      const mockProducts = [
+        { _id: '1', name: 'Laptop', category: mockCategory },
+        { _id: '2', name: 'Phone', category: mockCategory }
+      ];
+
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+      mockQuery.populate.mockResolvedValue(mockProducts);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: 'electronics' });
+      expect(productModel.find).toHaveBeenCalledWith({ category: mockCategory });
+      expect(mockQuery.populate).toHaveBeenCalledWith('category');
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        category: mockCategory,
+        products: mockProducts
+      });
+    });
+
+    it('should return category with empty products array when no products found', async () => {
+      const mockCategory = {
+        _id: '507f1f77bcf86cd799439011',
+        name: 'Books',
+        slug: 'books'
+      };
+
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        category: mockCategory,
+        products: []
+      });
+    });
+
+    it('should return null category when category not found', async () => {
+      categoryModel.findOne.mockResolvedValue(null);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: 'electronics' });
+      expect(productModel.find).toHaveBeenCalledWith({ category: null });
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        category: null,
+        products: []
+      });
+    });
+
+    it('should handle single product in category', async () => {
+      const mockCategory = { _id: '1', name: 'Gaming', slug: 'gaming' };
+      const mockProducts = [
+        { _id: '1', name: 'Gaming Console', category: mockCategory }
+      ];
+
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+      mockQuery.populate.mockResolvedValue(mockProducts);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        category: mockCategory,
+        products: mockProducts
+      });
+    });
+
+    it('should populate category field correctly', async () => {
+      const mockCategory = { _id: '1', name: 'Sports', slug: 'sports' };
+      const mockProducts = [
+        { 
+          _id: '1', 
+          name: 'Football',
+          category: {
+            _id: '1',
+            name: 'Sports',
+            slug: 'sports',
+            description: 'Sports equipment'
+          }
+        }
+      ];
+
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+      mockQuery.populate.mockResolvedValue(mockProducts);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(mockQuery.populate).toHaveBeenCalledWith('category');
+    });
+  });
+
+  describe('Parameter Handling', () => {
+    it('should handle different category slugs', async () => {
+      mockReq.params.slug = 'clothing';
+      const mockCategory = { _id: '2', name: 'Clothing', slug: 'clothing' };
+
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: 'clothing' });
+      expect(productModel.find).toHaveBeenCalledWith({ category: mockCategory });
+    });
+
+    it('should handle slug with special characters', async () => {
+      mockReq.params.slug = 'home-&-garden';
+
+      categoryModel.findOne.mockResolvedValue(null);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: 'home-&-garden' });
+    });
+
+    it('should handle numeric slug values', async () => {
+      mockReq.params.slug = '12345';
+
+      categoryModel.findOne.mockResolvedValue(null);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: '12345' });
+    });
+
+    it('should handle empty string slug', async () => {
+      mockReq.params.slug = '';
+
+      categoryModel.findOne.mockResolvedValue(null);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: '' });
+    });
+
+    it('should handle undefined slug', async () => {
+      mockReq.params.slug = undefined;
+
+      categoryModel.findOne.mockResolvedValue(null);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: undefined });
+    });
+
+    it('should handle slug with spaces and dashes', async () => {
+      mockReq.params.slug = 'home-decor-and-furniture';
+
+      categoryModel.findOne.mockResolvedValue(null);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: 'home-decor-and-furniture' });
+    });
+  });
+
+  describe('Error Cases', () => {
+    it('should handle category findOne errors', async () => {
+      const mockError = new Error('Database connection failed');
+      categoryModel.findOne.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        error: mockError,
+        message: 'Error While Getting products'
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle product find errors', async () => {
+      const mockCategory = { _id: '1', name: 'Test Category', slug: 'test' };
+      const mockError = new Error('Product query failed');
+
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+      mockQuery.populate.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        error: mockError,
+        message: 'Error While Getting products'
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle populate method errors', async () => {
+      const mockCategory = { _id: '1', name: 'Test', slug: 'test' };
+      const mockError = new Error('Population failed');
+
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+      mockQuery.populate.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        error: mockError,
+        message: 'Error While Getting products'
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle invalid ObjectId errors', async () => {
+      const mockError = new Error('Invalid ObjectId format');
+      categoryModel.findOne.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle network timeout errors', async () => {
+      const mockError = new Error('Request timeout');
+      categoryModel.findOne.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('Query Validation', () => {
+    it('should call categoryModel.findOne with correct slug parameter', async () => {
+      categoryModel.findOne.mockResolvedValue(null);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: 'electronics' });
+      expect(categoryModel.findOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call productModel.find with category object', async () => {
+      const mockCategory = { _id: '1', name: 'Test', slug: 'test' };
+
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({ category: mockCategory });
+      expect(productModel.find).toHaveBeenCalledTimes(1);
+    });
+
+    it('should populate category field on products', async () => {
+      categoryModel.findOne.mockResolvedValue(null);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(mockQuery.populate).toHaveBeenCalledWith('category');
+      expect(mockQuery.populate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Response Format Validation', () => {
+    it('should return exact response structure on success', async () => {
+      const mockCategory = { _id: '1', name: 'Test', slug: 'test' };
+      const mockProducts = [{ _id: '1', name: 'Test Product' }];
+
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+      mockQuery.populate.mockResolvedValue(mockProducts);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        category: mockCategory,
+        products: mockProducts
+      });
+    });
+
+    it('should return exact error response structure', async () => {
+      const mockError = new Error('Test error');
+      categoryModel.findOne.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        error: mockError,
+        message: 'Error While Getting products'
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not include extra properties in success response', async () => {
+      categoryModel.findOne.mockResolvedValue(null);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      const responseCall = mockRes.send.mock.calls[0][0];
+      const keys = Object.keys(responseCall);
+
+      expect(keys).toEqual(['success', 'category', 'products']);
+      expect(keys).toHaveLength(3);
+    });
+
+    it('should maintain data types in response', async () => {
+      const mockCategory = { _id: '1', name: 'Electronics', slug: 'electronics' };
+      const mockProducts = [{ _id: '1', name: 'Laptop', price: 999.99 }];
+
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+      mockQuery.populate.mockResolvedValue(mockProducts);
+
+      await productCategoryController(mockReq, mockRes);
+
+      const response = mockRes.send.mock.calls[0][0];
+      expect(typeof response.success).toBe('boolean');
+      expect(typeof response.category).toBe('object');
+      expect(Array.isArray(response.products)).toBe(true);
+    });
+  });
+
+  describe('Business Logic Validation', () => {
+    it('should use category object as filter for products query', async () => {
+      const mockCategory = { _id: 'cat123', name: 'Test Category' };
+
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({ category: mockCategory });
+    });
+
+    it('should return both category and products even when products array is empty', async () => {
+      const mockCategory = { _id: '1', name: 'Empty Category', slug: 'empty' };
+
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+      mockQuery.populate.mockResolvedValue([]);
+
+      await productCategoryController(mockReq, mockRes);
+
+      const response = mockRes.send.mock.calls[0][0];
+      expect(response.category).toEqual(mockCategory);
+      expect(response.products).toEqual([]);
     });
   });
 });
