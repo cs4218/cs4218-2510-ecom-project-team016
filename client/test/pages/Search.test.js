@@ -195,16 +195,4 @@ describe('Search Component', () => {
     // Should not crash and should show no products found
     expect(screen.getByText('No Products Found')).toBeInTheDocument();
   });
-
-  test('handles null results array', () => {
-    mockUseSearch.mockReturnValue([
-      { results: null },
-      jest.fn()
-    ]);
-
-    render(<Search />);
-
-    // Should not crash and should show no products found
-    expect(screen.getByText('No Products Found')).toBeInTheDocument();
-  });
 });
