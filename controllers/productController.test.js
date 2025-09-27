@@ -3,7 +3,7 @@
 // Yes, it was asked to write for a component, but these are controllers.
 // There were edits to fix issues.
 import path from "path";
-import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController, productPhotoController } from "../controllers/productController.js";
+import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController, productPhotoController, productFiltersController } from "../controllers/productController.js";
 import productModel from "../models/productModel";
 import fs from "fs";
 import slugify from "slugify";
@@ -1074,4 +1074,317 @@ describe('productPhotoController', () => {
     });
   });
 });
+
+describe('productFiltersController', () => {
+  let mockReq;
+  let mockRes;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockReq = {
+      body: {
+        checked: [],
+        radio: []
+      }
+    };
+
+    mockRes = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis()
+    };
+
+    productModel.find = jest.fn().mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('Success Cases', () => {
+    it('should return all products when no filters applied', async () => {
+      const mockProducts = [
+        { _id: '1', name: 'Product 1', price: 100 },
+        { _id: '2', name: 'Product 2', price: 200 }
+      ];
+
+      productModel.find.mockResolvedValue(mockProducts);
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({});
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: mockProducts
+      });
+    });
+
+    it('should filter by category only', async () => {
+      mockReq.body.checked = ['cat1', 'cat2'];
+      const mockProducts = [
+        { _id: '1', name: 'Product 1', category: 'cat1' }
+      ];
+
+      productModel.find.mockResolvedValue(mockProducts);
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: ['cat1', 'cat2']
+      });
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: mockProducts
+      });
+    });
+
+    it('should filter by price range only', async () => {
+      mockReq.body.radio = [50, 200];
+      const mockProducts = [
+        { _id: '1', name: 'Product 1', price: 100 }
+      ];
+
+      productModel.find.mockResolvedValue(mockProducts);
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        price: { $gte: 50, $lte: 200 }
+      });
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: mockProducts
+      });
+    });
+
+    it('should filter by both category and price range', async () => {
+      mockReq.body.checked = ['electronics'];
+      mockReq.body.radio = [100, 500];
+      const mockProducts = [
+        { _id: '1', name: 'Laptop', category: 'electronics', price: 300 }
+      ];
+
+      productModel.find.mockResolvedValue(mockProducts);
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: ['electronics'],
+        price: { $gte: 100, $lte: 500 }
+      });
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: mockProducts
+      });
+    });
+
+    it('should return empty array when no products match filters', async () => {
+      mockReq.body.checked = ['nonexistent'];
+      productModel.find.mockResolvedValue([]);
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: []
+      });
+    });
+
+    it('should handle single category filter', async () => {
+      mockReq.body.checked = ['books'];
+      const mockProducts = [{ _id: '1', name: 'Book 1', category: 'books' }];
+
+      productModel.find.mockResolvedValue(mockProducts);
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: ['books']
+      });
+    });
+
+    it('should handle zero price range', async () => {
+      mockReq.body.radio = [0, 50];
+      const mockProducts = [{ _id: '1', name: 'Free Product', price: 0 }];
+
+      productModel.find.mockResolvedValue(mockProducts);
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        price: { $gte: 0, $lte: 50 }
+      });
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should ignore empty checked array', async () => {
+      mockReq.body.checked = [];
+      mockReq.body.radio = [10, 20];
+
+      productModel.find.mockResolvedValue([]);
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        price: { $gte: 10, $lte: 20 }
+      });
+    });
+
+    it('should ignore empty radio array', async () => {
+      mockReq.body.checked = ['category1'];
+      mockReq.body.radio = [];
+
+      productModel.find.mockResolvedValue([]);
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: ['category1']
+      });
+    });
+
+    it('should handle single element arrays', async () => {
+      mockReq.body.checked = ['single-category'];
+      mockReq.body.radio = [100];
+
+      productModel.find.mockResolvedValue([]);
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: ['single-category'],
+        price: { $gte: 100, $lte: undefined }
+      });
+    });
+
+    it('should handle negative price values', async () => {
+      mockReq.body.radio = [-10, 100];
+
+      productModel.find.mockResolvedValue([]);
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        price: { $gte: -10, $lte: 100 }
+      });
+    });
+  });
+
+  describe('Error Cases', () => {
+    it('should handle database query errors', async () => {
+      const mockError = new Error('Database connection failed');
+      productModel.find.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Error WHile Filtering Products',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle missing request body properties', async () => {
+      mockReq.body = {};
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Error WHile Filtering Products',
+        error: expect.any(TypeError)
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle null request body', async () => {
+      mockReq.body = null;
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle invalid filter arguments without error', async () => {
+      mockReq.body.checked = 'invalid-string';
+      mockReq.body.radio = 'invalid-string';
+    
+      productModel.find.mockResolvedValue([]);
+    
+      await productFiltersController(mockReq, mockRes);
+    
+      // Strings have length > 0, so they get processed
+      // checked = 'invalid-string', radio[0] = 'i', radio[1] = 'n'
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: 'invalid-string',
+        price: { $gte: 'i', $lte: 'n' }
+      });
+    
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: true,
+        products: []
+      });
+    });    
+  });
+
+  describe('Filter Logic Validation', () => {
+    it('should not add category filter when checked array length is 0', async () => {
+      mockReq.body.checked = [];
+      mockReq.body.radio = [];
+
+      productModel.find.mockResolvedValue([]);
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({});
+    });
+
+    it('should not add price filter when radio array length is 0', async () => {
+      mockReq.body.checked = ['cat1'];
+      mockReq.body.radio = [];
+
+      productModel.find.mockResolvedValue([]);
+
+      await productFiltersController(mockReq, mockRes);
+
+      expect(productModel.find).toHaveBeenCalledWith({
+        category: ['cat1']
+      });
+    });
+
+    it('should build correct MongoDB query structure', async () => {
+      mockReq.body.checked = ['electronics', 'books'];
+      mockReq.body.radio = [25, 75];
+
+      productModel.find.mockResolvedValue([]);
+
+      await productFiltersController(mockReq, mockRes);
+
+      const expectedQuery = {
+        category: ['electronics', 'books'],
+        price: { $gte: 25, $lte: 75 }
+      };
+
+      expect(productModel.find).toHaveBeenCalledWith(expectedQuery);
+    });
+  });
+});
+
 
