@@ -3,7 +3,7 @@
 // Yes, it was asked to write for a component, but these are controllers.
 // There were edits to fix issues.
 import path from "path";
-import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController } from "../controllers/productController.js";
+import { createProductController, updateProductController, deleteProductController, getProductController, getSingleProductController, productPhotoController } from "../controllers/productController.js";
 import productModel from "../models/productModel";
 import fs from "fs";
 import slugify from "slugify";
@@ -798,6 +798,279 @@ describe('getSingleProductController', () => {
       await getSingleProductController(mockReq, mockRes);
 
       expect(productModel.findOne).toHaveBeenCalledWith({ slug: '12345' });
+    });
+  });
+});
+
+describe('productPhotoController', () => {
+  let mockReq;
+  let mockRes;
+  let mockQuery;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockReq = {
+      params: {
+        pid: '507f1f77bcf86cd799439011'
+      }
+    };
+
+    mockRes = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis()
+    };
+
+    mockQuery = {
+      select: jest.fn().mockResolvedValue(null)
+    };
+
+    productModel.findById = jest.fn().mockReturnValue(mockQuery);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('Success Cases', () => {
+    it('should return photo data with correct content type', async () => {
+      const mockProduct = {
+        _id: '507f1f77bcf86cd799439011',
+        photo: {
+          data: Buffer.from('fake-image-data'),
+          contentType: 'image/jpeg'
+        }
+      };
+
+      mockQuery.select.mockResolvedValue(mockProduct);
+
+      await productPhotoController(mockReq, mockRes);
+
+      expect(productModel.findById).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(mockQuery.select).toHaveBeenCalledWith('photo');
+      expect(mockRes.set).toHaveBeenCalledWith('Content-type', 'image/jpeg');
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith(Buffer.from('fake-image-data'));
+    });
+
+    it('should handle different image types', async () => {
+      const mockProduct = {
+        _id: '507f1f77bcf86cd799439011',
+        photo: {
+          data: Buffer.from('png-image-data'),
+          contentType: 'image/png'
+        }
+      };
+
+      mockQuery.select.mockResolvedValue(mockProduct);
+
+      await productPhotoController(mockReq, mockRes);
+
+      expect(mockRes.set).toHaveBeenCalledWith('Content-type', 'image/png');
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.send).toHaveBeenCalledWith(Buffer.from('png-image-data'));
+    });
+
+    it('should handle large photo data', async () => {
+      const largeBuffer = Buffer.alloc(1000000, 'x');
+      const mockProduct = {
+        _id: '507f1f77bcf86cd799439011',
+        photo: {
+          data: largeBuffer,
+          contentType: 'image/jpeg'
+        }
+      };
+
+      mockQuery.select.mockResolvedValue(mockProduct);
+
+      await productPhotoController(mockReq, mockRes);
+
+      expect(mockRes.send).toHaveBeenCalledWith(largeBuffer);
+    });
+  });
+
+  describe('No Photo Data Cases', () => {
+    it('should not respond when product has no photo data', async () => {
+      const mockProduct = {
+        _id: '507f1f77bcf86cd799439011',
+        photo: {
+          data: null,
+          contentType: 'image/jpeg'
+        }
+      };
+
+      mockQuery.select.mockResolvedValue(mockProduct);
+
+      await productPhotoController(mockReq, mockRes);
+
+      expect(mockRes.set).not.toHaveBeenCalled();
+      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.send).not.toHaveBeenCalled();
+    });
+
+    it('should not respond when product has empty photo data', async () => {
+      const mockProduct = {
+        _id: '507f1f77bcf86cd799439011',
+        photo: {
+          data: '',
+          contentType: 'image/jpeg'
+        }
+      };
+
+      mockQuery.select.mockResolvedValue(mockProduct);
+
+      await productPhotoController(mockReq, mockRes);
+
+      expect(mockRes.set).not.toHaveBeenCalled();
+      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.send).not.toHaveBeenCalled();
+    });
+
+    it('should not respond when product has undefined photo data', async () => {
+      const mockProduct = {
+        _id: '507f1f77bcf86cd799439011',
+        photo: {
+          data: undefined,
+          contentType: 'image/jpeg'
+        }
+      };
+
+      mockQuery.select.mockResolvedValue(mockProduct);
+
+      await productPhotoController(mockReq, mockRes);
+
+      expect(mockRes.set).not.toHaveBeenCalled();
+      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Error Cases', () => {
+    it('should handle database query errors', async () => {
+      const mockError = new Error('Database connection failed');
+      mockQuery.select.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productPhotoController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Erorr while getting photo',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle invalid product ID', async () => {
+      const mockError = new Error('Invalid ObjectId');
+      mockQuery.select.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productPhotoController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalledWith(mockError);
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Erorr while getting photo',
+        error: mockError
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle product not found', async () => {
+      mockQuery.select.mockResolvedValue(null);
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+    
+      await productPhotoController(mockReq, mockRes);
+    
+      expect(productModel.findById).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(consoleSpy).toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(mockRes.send).toHaveBeenCalledWith({
+        success: false,
+        message: 'Erorr while getting photo',
+        error: expect.any(TypeError)
+      });
+    
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle product without photo field', async () => {
+      const mockProduct = {
+        _id: '507f1f77bcf86cd799439011',
+        name: 'Product without photo'
+      };
+
+      mockQuery.select.mockResolvedValue(mockProduct);
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productPhotoController(mockReq, mockRes);
+
+      expect(consoleSpy).toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('Request Parameter Handling', () => {
+    it('should handle different product ID formats', async () => {
+      mockReq.params.pid = '507f1f77bcf86cd799439012';
+      const mockProduct = {
+        photo: {
+          data: Buffer.from('test'),
+          contentType: 'image/gif'
+        }
+      };
+
+      mockQuery.select.mockResolvedValue(mockProduct);
+
+      await productPhotoController(mockReq, mockRes);
+
+      expect(productModel.findById).toHaveBeenCalledWith('507f1f77bcf86cd799439012');
+    });
+
+    it('should handle missing product ID', async () => {
+      mockReq.params.pid = undefined;
+      const mockError = new Error('Product ID is required');
+      mockQuery.select.mockRejectedValue(mockError);
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await productPhotoController(mockReq, mockRes);
+
+      expect(productModel.findById).toHaveBeenCalledWith(undefined);
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('Query Validation', () => {
+    it('should call findById with correct parameters', async () => {
+      mockQuery.select.mockResolvedValue(null);
+
+      await productPhotoController(mockReq, mockRes);
+
+      expect(productModel.findById).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(productModel.findById).toHaveBeenCalledTimes(1);
+    });
+
+    it('should select only photo field', async () => {
+      mockQuery.select.mockResolvedValue(null);
+
+      await productPhotoController(mockReq, mockRes);
+
+      expect(mockQuery.select).toHaveBeenCalledWith('photo');
+      expect(mockQuery.select).toHaveBeenCalledTimes(1);
     });
   });
 });
