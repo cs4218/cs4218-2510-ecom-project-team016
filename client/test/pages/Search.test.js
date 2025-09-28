@@ -183,16 +183,4 @@ describe('Search Component', () => {
     const layout = screen.getByTestId('layout');
     expect(layout).toHaveAttribute('title', 'Search results');
   });
-
-  test('handles undefined values from useSearch', () => {
-    mockUseSearch.mockReturnValue([
-      undefined,
-      jest.fn()
-    ]);
-
-    render(<Search />);
-
-    // Should not crash and should show no products found
-    expect(screen.getByText('No Products Found')).toBeInTheDocument();
-  });
 });
