@@ -10,7 +10,6 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 
-
 let mockInstanceSetter;
 let localStorageMock;
 const mockRequestPaymentMethod = jest.fn();
@@ -33,7 +32,6 @@ jest.mock("react-hot-toast", () => ({
 }));
 jest.mock("client/src/components/Layout", () => ({ children }) => <div>{children}</div>);
 
-
 beforeAll(() => {
   localStorageMock = {
     getItem: jest.fn(),
@@ -41,7 +39,7 @@ beforeAll(() => {
     removeItem: jest.fn(),
     clear: jest.fn(),
   };
-  Object.defineProperty(window, 'localStorage', {
+  Object.defineProperty(window, "localStorage", {
     value: localStorageMock,
   });
 });
@@ -54,19 +52,21 @@ describe("CartPage", () => {
     jest.clearAllMocks();
     useNavigate.mockReturnValue(mockNavigate);
     useCart.mockReturnValue([[], mockSetCart]);
-    
     axios.get.mockResolvedValue({ data: { clientToken: "token-123" } });
   });
 
-  const setup = (cart = [], auth = { token: "123", user: { name: "John", address: "123 St" } }) => {
+  const setup = async (cart = [], auth = { token: "123", user: { name: "John", address: "123 St" } }) => {
     useCart.mockReturnValue([cart, mockSetCart]);
     useAuth.mockReturnValue([auth, jest.fn()]);
 
-    return render(<CartPage />);
+    render(<CartPage />);
+    await act(async () => {
+      await Promise.resolve();
+    });
   };
 
   test("renders empty cart message when cart is empty", async () => {
-    setup([], { token: null, user: null });
+    await setup([], { token: null, user: null });
 
     expect(await screen.findByText(/Hello Guest/i)).toBeInTheDocument();
     expect(screen.getByText(/Your Cart Is Empty/i)).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe("CartPage", () => {
       { _id: "2", name: "Product 2", description: "desc2", price: 200 },
     ];
 
-    setup(cartItems);
+    await setup(cartItems);
 
     expect(await screen.findByText(/Product 1/i)).toBeInTheDocument();
     expect(screen.getByText(/Product 2/i)).toBeInTheDocument();
@@ -87,17 +87,17 @@ describe("CartPage", () => {
 
   test("calls removeCartItem when remove button is clicked", async () => {
     const cartItems = [{ _id: "1", name: "Product 1", description: "desc1", price: 100 }];
-    
-    setup(cartItems);
+
+    await setup(cartItems);
 
     const removeBtn = await screen.findByRole("button", { name: /Remove/i });
     fireEvent.click(removeBtn);
-    
-    expect(mockSetCart).toHaveBeenCalledWith([]); 
+
+    expect(mockSetCart).toHaveBeenCalledWith([]);
   });
 
   test("calls navigate when updating address or login", async () => {
-    setup([], { token: null, user: null });
+    await setup([], { token: null, user: null });
 
     const loginBtn = screen.getByRole("button", { name: /Plase Login to checkout/i });
     fireEvent.click(loginBtn);
@@ -106,41 +106,34 @@ describe("CartPage", () => {
 
   test("renders DropIn, handles payment flow successfully, and calls axios.post", async () => {
     const cartItems = [{ _id: "1", name: "Product 1", description: "desc1", price: 100, photo: { data: {} } }];
-    setup(cartItems);
-    
+    await setup(cartItems);
+
     await screen.findByText("DropIn Mock");
 
     const mockInstance = {
       requestPaymentMethod: mockRequestPaymentMethod.mockResolvedValue({ nonce: "fake-nonce" }),
     };
-    
+
     await act(async () => {
       if (mockInstanceSetter) {
         mockInstanceSetter(mockInstance);
-      } else {
-        throw new Error("mockInstanceSetter was not captured by the DropIn mock.");
       }
     });
-    
-    axios.post.mockResolvedValue({ 
-      data: { ok: true } 
-    });
+
+    axios.post.mockResolvedValue({ data: { ok: true } });
 
     const paymentBtn = screen.getByRole("button", { name: /Make Payment/i });
-    
+
     fireEvent.click(paymentBtn);
     await act(async () => {
       await Promise.resolve();
     });
 
-    expect(mockRequestPaymentMethod).toHaveBeenCalledTimes(1); 
-    
-    expect(axios.post).toHaveBeenCalledTimes(1);
+    expect(mockRequestPaymentMethod).toHaveBeenCalledTimes(1);
     expect(axios.post).toHaveBeenCalledWith("/api/v1/product/braintree/payment", {
       nonce: "fake-nonce",
       cart: cartItems,
     });
-    
     expect(toast.success).toHaveBeenCalledWith("Payment Completed Successfully ");
     expect(mockSetCart).toHaveBeenCalledWith([]);
     expect(mockNavigate).toHaveBeenCalledWith("/dashboard/user/orders");
@@ -152,7 +145,7 @@ describe("CartPage", () => {
     localStorageMock.removeItem.mockClear();
     localStorageMock.setItem("cart", JSON.stringify(cartItems));
 
-    setup(cartItems);
+    await setup(cartItems);
 
     await screen.findByText("DropIn Mock");
 
@@ -168,7 +161,7 @@ describe("CartPage", () => {
     });
 
     const paymentBtn = screen.getByRole("button", { name: /Make Payment/i });
-
+    
     fireEvent.click(paymentBtn);
     await act(async () => {
       await Promise.resolve();

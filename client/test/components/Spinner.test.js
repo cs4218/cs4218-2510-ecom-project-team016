@@ -7,6 +7,7 @@ import Spinner from "client/src/components/Spinner";
 import { MemoryRouter } from "react-router-dom";
 
 const mockNavigate = jest.fn();
+
 jest.mock("react-router-dom", () => ({
   ...jest.requireActual("react-router-dom"),
   useNavigate: () => mockNavigate,
@@ -27,21 +28,25 @@ describe("Spinner Component", () => {
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    jest.clearAllTimers();
     jest.useRealTimers();
   });
 
   test("renders countdown correctly", () => {
-    setup("login");
-
+    act(() => {
+      setup("login");
+    });
     expect(screen.getByText(/redirecting to you in 3 second/i)).toBeInTheDocument();
   });
 
   test("counts down and navigates after 3 seconds", () => {
-    setup("login");
+    act(() => {
+      setup("login");
+    });
 
     expect(screen.getByText(/redirecting to you in 3 second/i)).toBeInTheDocument();
 
+    // 👇 Each timer tick wrapped in act()
     act(() => {
       jest.advanceTimersByTime(1000);
     });
@@ -55,12 +60,13 @@ describe("Spinner Component", () => {
     act(() => {
       jest.advanceTimersByTime(1000);
     });
-
     expect(mockNavigate).toHaveBeenCalledWith("/login", { state: "/current" });
   });
 
   test("uses custom path if provided", () => {
-    setup("dashboard");
+    act(() => {
+      setup("dashboard");
+    });
 
     act(() => {
       jest.advanceTimersByTime(3000);
