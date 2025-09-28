@@ -2,18 +2,23 @@
 // "help me write unit tests for this component:"
 // Yes, it was asked to write for a component, but these are controllers.
 // There were edits to fix issues.
-import path from "path";
-import { createProductController, updateProductController, deleteProductController } from "../controllers/productController.js";
+import { createProductController, updateProductController, deleteProductController, braintreeTokenController, brainTreePaymentController, gateway } from "../controllers/productController.js";
 import productModel from "../models/productModel";
+import orderModel from "../models/orderModel.js";
 import fs from "fs";
 import slugify from "slugify";
-import { da } from "date-fns/locale";
 
 jest.mock("../models/productModel");
 jest.mock("fs", () => ({
   readFileSync: jest.fn(),
 }));
 jest.mock("braintree");
+jest.mock("../models/orderModel.js", () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({
+    save: jest.fn().mockResolvedValue(true),
+  })),
+}));
 jest.mock("slugify", () => jest.fn((str) => str.toLowerCase().replace(/\s+/g, "-")));
 
 describe("createProductController", () => {
@@ -355,5 +360,110 @@ describe("updateProductController", () => {
     expect(res.send).toHaveBeenCalledWith(
       expect.objectContaining({ success: false, message: "Error in Updating product" })
     );
+  });
+});
+
+describe("Braintree Controllers", () => {
+  let req, res;
+
+  beforeEach(() => {
+    req = {};
+    res = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn(),
+      json: jest.fn(),
+    };
+  });
+
+  describe("braintreeTokenController", () => {
+    let req, res;
+
+    beforeEach(() => {
+      req = {};
+      res = {
+        send: jest.fn(),
+        status: jest.fn().mockReturnThis(),
+      };
+    });
+
+    it("should send token response on success", async () => {
+      jest.spyOn(gateway.clientToken, "generate").mockImplementation((_, callback) => {
+        callback(null, { clientToken: "fake-token" });
+      });
+
+      await braintreeTokenController(req, res);
+
+      expect(gateway.clientToken.generate).toHaveBeenCalledWith({}, expect.any(Function));
+      expect(res.send).toHaveBeenCalledWith({ clientToken: "fake-token" });
+    });
+
+    it("should return 500 on error", async () => {
+      jest.spyOn(gateway.clientToken, "generate").mockImplementation((_, callback) => {
+        callback("error generating token", null);
+      });
+
+      await braintreeTokenController(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith("error generating token");
+    });
+  });
+
+  describe("brainTreePaymentController", () => {
+    let req, res;
+
+    beforeEach(() => {
+      req = {
+        body: {
+          nonce: "fake-nonce",
+          cart: [
+            { price: 10 },
+            { price: 20 },
+          ],
+        },
+        user: { _id: "user123" },
+      };
+
+      res = {
+        json: jest.fn(),
+        status: jest.fn().mockReturnThis(),
+        send: jest.fn(),
+      };
+    });
+
+    gateway.clientToken = { generate: jest.fn() };
+    gateway.transaction = { sale: jest.fn() };
+
+    it("should create transaction and save order on success", async () => {
+      jest.spyOn(gateway.transaction, "sale").mockImplementation((data, callback) => {
+        expect(data).toEqual({
+          amount: 30,
+          paymentMethodNonce: "fake-nonce",
+          options: { submitForSettlement: true },
+        });
+        callback(null, { success: true });
+      });
+
+      await brainTreePaymentController(req, res);
+      
+      expect(gateway.transaction.sale).toHaveBeenCalledTimes(1);
+      expect(res.json).toHaveBeenCalledWith({ ok: true });
+      expect(orderModel).toHaveBeenCalledWith({
+        products: req.body.cart,
+        payment: { success: true },
+        buyer: req.user._id,
+      });
+    });
+
+    it("should handle transaction error", async () => {
+      jest.spyOn(gateway.transaction, "sale").mockImplementation((data, callback) => {
+        callback("some error", null);
+      });
+
+      await brainTreePaymentController(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith("some error");
+    });
   });
 });
