@@ -23,6 +23,7 @@ import Categories from "./pages/Categories";
 import CategoryProduct from "./pages/CategoryProduct";
 import CartPage from "./pages/CartPage";
 import AdminOrders from "./pages/admin/AdminOrders";
+import Forget from "./pages/Auth/Forget";
 function App() {
   return (
     <>
@@ -50,6 +51,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/about" element={<About />} />
+        <Route path="/forgot-password" element={<Forget />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/policy" element={<Policy />} />
         <Route path="*" element={<Pagenotfound />} />
