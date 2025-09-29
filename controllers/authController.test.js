@@ -35,14 +35,15 @@ describe("Auth Controllers Unit Tests", () => {
     // updateProfileController
     // -------------------------------
     it("should update profile successfully", async () => {
-        req.body = { name: "John", password: "newpassword", phone: "123", address: "xyz" };
+        req.body = { name: "John", email: "newemail", password: "newpassword", phone: "123", address: "xyz" };
 
-        const user = { _id: "123", name: "Old", password: "old", phone: "111", address: "abc" };
+        const user = { _id: "123", name: "Old", email: "Old", password: "old", phone: "111", address: "abc" };
         userModel.findById.mockResolvedValue(user);
         hashPassword.mockResolvedValue("hashedpassword");
         userModel.findByIdAndUpdate.mockResolvedValue({
             ...user,
             name: "John",
+            email: "newemail",
             password: "hashedpassword",
             phone: "123",
             address: "xyz"
@@ -67,6 +68,17 @@ describe("Auth Controllers Unit Tests", () => {
         expect(res.json).toHaveBeenCalledWith({ error: "Passsword is required and 6 character long" });
     });
 
+    it("should handle error and return 400 with error object", async () => {
+        const error = new Error("DB exploded"); // Force findById to throw 
+        userModel.findById.mockRejectedValue(error); req.body = { name: "Crash" }; 
+        await updateProfileController(req, res); 
+        expect(res.status).toHaveBeenCalledWith(400); 
+        expect(res.status().send).toHaveBeenCalledWith({ 
+            success: false, 
+            message: "Error While Update profile", error, 
+        });
+    });
+    
     // -------------------------------
     // getOrdersController
     // -------------------------------
@@ -103,7 +115,7 @@ describe("Auth Controllers Unit Tests", () => {
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.send).toHaveBeenCalledWith({
             success: false,
-            message: "Error WHile Geting Orders",
+            message: "Error While Geting Orders",
             error,
         });
     });
