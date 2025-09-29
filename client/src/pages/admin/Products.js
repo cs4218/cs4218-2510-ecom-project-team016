@@ -11,10 +11,14 @@ const Products = () => {
   const getAllProducts = async () => {
     try {
       const { data } = await axios.get("/api/v1/product/get-product");
-      setProducts(data.products);
+      if (data?.success) {
+        setProducts(data.products);
+      } else {
+        toast.error(data?.message);
+      }
     } catch (error) {
       console.log(error);
-      toast.error("Someething Went Wrong");
+      toast.error("Something Went Wrong");
     }
   };
 
