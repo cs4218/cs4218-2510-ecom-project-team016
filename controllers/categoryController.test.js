@@ -2,7 +2,7 @@
 // "help me write unit tests for this component:"
 // Yes, it was asked to write for a component, but these are controllers.
 // There were edits to fix issues.
-import { createCategoryController, updateCategoryController, deleteCategoryController } from "./categoryController";
+import { createCategoryController, updateCategoryController, deleteCategoryController, categoryControlller, singleCategoryController } from "./categoryController";
 import categoryModel from "../models/categoryModel";
 
 jest.mock("../models/categoryModel");
@@ -161,6 +161,461 @@ describe("deleteCategoryController", () => {
       success: false,
       message: "Error while deleting category",
       error,
+    });
+  });
+});
+
+
+describe('categoryControlller', () => {
+  let req, res;
+
+  beforeEach(() => {
+    // Reset mocks before each test
+    jest.clearAllMocks();
+
+    // Mock request and response objects
+    req = {};
+    res = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis(),
+    };
+  });
+
+  describe('Successful scenarios', () => {
+    it('should return all categories with 200 status', async () => {
+      const mockCategories = [
+        { _id: '1', name: 'Electronics', slug: 'electronics' },
+        { _id: '2', name: 'Clothing', slug: 'clothing' },
+        { _id: '3', name: 'Books', slug: 'books' }
+      ];
+
+      categoryModel.find.mockResolvedValue(mockCategories);
+
+      await categoryControlller(req, res);
+
+      expect(categoryModel.find).toHaveBeenCalledWith({});
+      expect(categoryModel.find).toHaveBeenCalledTimes(1);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.send).toHaveBeenCalledWith({
+        success: true,
+        message: "All Categories List",
+        category: mockCategories,
+      });
+    });
+
+    it('should handle empty categories list', async () => {
+      categoryModel.find.mockResolvedValue([]);
+
+      await categoryControlller(req, res);
+
+      expect(categoryModel.find).toHaveBeenCalledWith({});
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.send).toHaveBeenCalledWith({
+        success: true,
+        message: "All Categories List",
+        category: [],
+      });
+    });
+
+    it('should handle large dataset of categories', async () => {
+      const mockCategories = Array.from({ length: 100 }, (_, i) => ({
+        _id: `id-${i}`,
+        name: `Category ${i}`,
+        slug: `category-${i}`
+      }));
+
+      categoryModel.find.mockResolvedValue(mockCategories);
+
+      await categoryControlller(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.send).toHaveBeenCalledWith({
+        success: true,
+        message: "All Categories List",
+        category: mockCategories,
+      });
+    });
+  });
+
+  describe('Error scenarios', () => {
+    it('should handle database error with 500 status', async () => {
+      const mockError = new Error('Database connection failed');
+      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      categoryModel.find.mockRejectedValue(mockError);
+
+      await categoryControlller(req, res);
+
+      expect(categoryModel.find).toHaveBeenCalledWith({});
+      expect(consoleLogSpy).toHaveBeenCalledWith(mockError);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith({
+        success: false,
+        error: mockError,
+        message: "Error while getting all categories",
+      });
+
+      consoleLogSpy.mockRestore();
+    });
+
+    it('should handle null/undefined error', async () => {
+      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      categoryModel.find.mockRejectedValue(null);
+
+      await categoryControlller(req, res);
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(null);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith({
+        success: false,
+        error: null,
+        message: "Error while getting all categories",
+      });
+
+      consoleLogSpy.mockRestore();
+    });
+
+    it('should handle timeout error', async () => {
+      const mockError = new Error('Operation timed out');
+      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      categoryModel.find.mockRejectedValue(mockError);
+
+      await categoryControlller(req, res);
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(mockError);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith({
+        success: false,
+        error: mockError,
+        message: "Error while getting all categories",
+      });
+
+      consoleLogSpy.mockRestore();
+    });
+  });
+
+  describe('Edge cases', () => {
+    it('should only call res.status and res.send once', async () => {
+      categoryModel.find.mockResolvedValue([]);
+
+      await categoryControlller(req, res);
+
+      expect(res.status).toHaveBeenCalledTimes(1);
+      expect(res.send).toHaveBeenCalledTimes(1);
+    });
+
+    it('should maintain response chaining', async () => {
+      categoryModel.find.mockResolvedValue([]);
+
+      await categoryControlller(req, res);
+
+      // Verify method chaining works correctly
+      expect(res.status(200)).toBe(res);
+      expect(res.send({})).toBe(res);
+    });
+
+    it('should handle categories with special properties', async () => {
+      const mockCategories = [
+        { 
+          _id: '1', 
+          name: 'Special Category', 
+          slug: 'special-category',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          __v: 0
+        }
+      ];
+
+      categoryModel.find.mockResolvedValue(mockCategories);
+
+      await categoryControlller(req, res);
+
+      expect(res.send).toHaveBeenCalledWith({
+        success: true,
+        message: "All Categories List",
+        category: mockCategories,
+      });
+    });
+  });
+});
+
+describe('singleCategoryController', () => {
+  let req, res;
+
+  beforeEach(() => {
+    // Reset mocks before each test
+    jest.clearAllMocks();
+
+    // Mock request and response objects
+    req = {
+      params: {
+        slug: 'test-slug'
+      }
+    };
+    res = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis(),
+    };
+  });
+
+  describe('Successful scenarios', () => {
+    it('should return single category with 200 status', async () => {
+      const mockCategory = {
+        _id: '1',
+        name: 'Electronics',
+        slug: 'electronics',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+
+      await singleCategoryController(req, res);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: 'test-slug' });
+      expect(categoryModel.findOne).toHaveBeenCalledTimes(1);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.send).toHaveBeenCalledWith({
+        success: true,
+        message: "Get SIngle Category SUccessfully",
+        category: mockCategory,
+      });
+    });
+
+    it('should handle different slug formats', async () => {
+      const mockCategory = {
+        _id: '2',
+        name: 'Home & Garden',
+        slug: 'home-and-garden'
+      };
+
+      req.params.slug = 'home-and-garden';
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+
+      await singleCategoryController(req, res);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: 'home-and-garden' });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.send).toHaveBeenCalledWith({
+        success: true,
+        message: "Get SIngle Category SUccessfully",
+        category: mockCategory,
+      });
+    });
+
+    it('should handle category not found (null result)', async () => {
+      categoryModel.findOne.mockResolvedValue(null);
+
+      await singleCategoryController(req, res);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: 'test-slug' });
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.send).toHaveBeenCalledWith({
+        success: true,
+        message: "Get SIngle Category SUccessfully",
+        category: null,
+      });
+    });
+
+    it('should handle special characters in slug', async () => {
+      const mockCategory = {
+        _id: '3',
+        name: 'Special Category',
+        slug: 'special-category-123'
+      };
+
+      req.params.slug = 'special-category-123';
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+
+      await singleCategoryController(req, res);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: 'special-category-123' });
+      expect(res.send).toHaveBeenCalledWith({
+        success: true,
+        message: "Get SIngle Category SUccessfully",
+        category: mockCategory,
+      });
+    });
+
+    it('should handle category with nested properties', async () => {
+      const mockCategory = {
+        _id: '4',
+        name: 'Complex Category',
+        slug: 'complex-category',
+        metadata: {
+          description: 'Test description',
+          image: 'image-url'
+        },
+        products: ['product1', 'product2']
+      };
+
+      req.params.slug = 'complex-category';
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+
+      await singleCategoryController(req, res);
+
+      expect(res.send).toHaveBeenCalledWith({
+        success: true,
+        message: "Get SIngle Category SUccessfully",
+        category: mockCategory,
+      });
+    });
+  });
+
+  describe('Error scenarios', () => {
+    it('should handle database error with 500 status', async () => {
+      const mockError = new Error('Database connection failed');
+      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      categoryModel.findOne.mockRejectedValue(mockError);
+
+      await singleCategoryController(req, res);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: 'test-slug' });
+      expect(consoleLogSpy).toHaveBeenCalledWith(mockError);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith({
+        success: false,
+        error: mockError,
+        message: "Error While getting Single Category",
+      });
+
+      consoleLogSpy.mockRestore();
+    });
+
+    it('should handle undefined params.slug', async () => {
+      const mockError = new Error('Cannot read property of undefined');
+      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      req.params.slug = undefined;
+      categoryModel.findOne.mockRejectedValue(mockError);
+
+      await singleCategoryController(req, res);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: undefined });
+      expect(consoleLogSpy).toHaveBeenCalledWith(mockError);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith({
+        success: false,
+        error: mockError,
+        message: "Error While getting Single Category",
+      });
+
+      consoleLogSpy.mockRestore();
+    });
+
+    it('should handle timeout error', async () => {
+      const mockError = new Error('Query timeout');
+      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      categoryModel.findOne.mockRejectedValue(mockError);
+
+      await singleCategoryController(req, res);
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(mockError);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith({
+        success: false,
+        error: mockError,
+        message: "Error While getting Single Category",
+      });
+
+      consoleLogSpy.mockRestore();
+    });
+
+    it('should handle validation error', async () => {
+      const mockError = new Error('Invalid slug format');
+      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      categoryModel.findOne.mockRejectedValue(mockError);
+
+      await singleCategoryController(req, res);
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(mockError);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith({
+        success: false,
+        error: mockError,
+        message: "Error While getting Single Category",
+      });
+
+      consoleLogSpy.mockRestore();
+    });
+  });
+
+  describe('Edge cases', () => {
+    it('should only call res.status and res.send once', async () => {
+      const mockCategory = { _id: '1', name: 'Test', slug: 'test' };
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+
+      await singleCategoryController(req, res);
+
+      expect(res.status).toHaveBeenCalledTimes(1);
+      expect(res.send).toHaveBeenCalledTimes(1);
+    });
+
+    it('should maintain response chaining', async () => {
+      categoryModel.findOne.mockResolvedValue({});
+
+      await singleCategoryController(req, res);
+
+      // Verify method chaining works correctly
+      expect(res.status(200)).toBe(res);
+      expect(res.send({})).toBe(res);
+    });
+
+    it('should handle empty string slug', async () => {
+      req.params.slug = '';
+      categoryModel.findOne.mockResolvedValue(null);
+
+      await singleCategoryController(req, res);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: '' });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.send).toHaveBeenCalledWith({
+        success: true,
+        message: "Get SIngle Category SUccessfully",
+        category: null,
+      });
+    });
+
+    it('should handle very long slug', async () => {
+      const longSlug = 'a'.repeat(100);
+      req.params.slug = longSlug;
+
+      const mockCategory = { _id: '1', name: 'Test', slug: longSlug };
+      categoryModel.findOne.mockResolvedValue(mockCategory);
+
+      await singleCategoryController(req, res);
+
+      expect(categoryModel.findOne).toHaveBeenCalledWith({ slug: longSlug });
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('should handle missing params object', async () => {
+      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+      req.params = undefined;
+
+      const mockError = new TypeError("Cannot read properties of undefined (reading 'slug')");
+
+      await singleCategoryController(req, res);
+
+      expect(consoleLogSpy).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(500);
+
+      consoleLogSpy.mockRestore();
     });
   });
 });
