@@ -144,3 +144,97 @@ To begin unit testing with Jest in your project, follow these steps:
      ```bash
      npm run test
      ```
+
+# Contribution Breakdown
+## Aaron
+Set up CI
+
+Unit tests:
+- context/auth.js 
+- helpers/authHelper.js
+- middlewares/authMiddleware.js
+- pages/Auth/Register.js
+- pages/Auth/Login.js
+- controllers/authController.js
+  - registerController
+  - loginController
+  - forgotPasswordController
+  - testController
+
+## Alyssa
+Unit tests:
+- components/Routes/Private.js
+- components/UserMenu.js
+- pages/user/Dashboard.js
+- models/userModel.js
+- pages/user/Orders.js 
+- controllers/authController.js
+  - updateProfileController
+  - getOrdersController
+  - getAllOrdersController
+  - orderStatusController
+- models/orderModel.js
+- pages/user/Profile.js
+- pages/admin/Users.js
+
+## Heng Xing
+Unit tests:
+- components/Form/SearchInput.js
+- context/search.js
+- pages/Search.js
+- pages/ProductDetails.js
+- pages/CategoryProduct.js
+- controllers/productController.js
+  - getProductController
+  - getSingleProductController
+  - productPhotoController
+  - productFiltersController
+  - productCountController
+  - productListController
+  - searchProductController
+  - realtedProductController
+  - productCategoryController
+- models/productModel.js
+- hooks/useCategory.js
+- pages/Categories.js
+- controllers/categoryController.js
+  - categoryControlller
+  - singleCategoryController
+- models/categoryModel.js
+
+## Jony
+Unit tests:
+- pages/Contact.js
+- pages/Policy.js
+- components/Footer.js
+- components/Header.js
+- components/Layout.js
+- components/Spinner.js
+- pages/About.js
+- pages/Pagenotfound.js
+- config/db.js
+- pages/Homepage.js
+- context/cart.js
+- pages/CartPage.js
+- controllers/productController.js
+  - braintreeTokenController
+  - brainTreePaymentController
+
+## Ryan
+Unit tests:
+- components/AdminMenu.js
+- pages/admin/AdminDashboard.js
+- components/Form/CategoryForm.js
+- pages/admin/CreateCategory.js
+- pages/admin/CreateProduct.js
+- pages/admin/UpdateProduct.js
+- controllers/categoryController.js
+  - createCategoryController
+  - updateCategoryController
+  - deleteCategoryController
+- pages/admin/AdminOrders.js
+- pages/admin/Products.js 
+- controllers/productController.js
+  - createProductController
+  - deleteProductController
+  - updateProductController
