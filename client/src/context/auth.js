@@ -10,11 +10,6 @@ const AuthProvider = ({ children, user = null, token = "" }) => {
   });
 
   const setAuth = (auth) => {
-    if (!auth) {
-      setDefaultAuth();
-      return;
-    }
-
     if (!checkAuthContextValid(auth)) {
       setDefaultAuth();
       return;
