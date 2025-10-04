@@ -29,6 +29,14 @@ describe("hash password unit test", () => {
     expect(hash).toBe(hashed_password);
     expect(password).not.toBe(hash);
   });
+
+  test("should throw an error if bycrpt hash has an error", async () => {
+    bcrypt.hash.mockRejectedValue(new Error("Failed to hash password"));
+
+    await expect(hashPassword(password)).rejects.toThrow(
+      "Failed to hash password"
+    );
+  });
 });
 
 describe("compare password unit test", () => {
