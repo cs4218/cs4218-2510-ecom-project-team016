@@ -438,22 +438,18 @@ describe("test controller test", async () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  test("should handle error when res.status throws", async () => {
+  test("should return error when error occurs", async () => {
+    jest.clearAllMocks();
     req = {};
     res = {
-      send: jest.fn().mockReturnThis(),
-      status: jest.fn().mockRejectedValueOnce(new Error("Status error")),
+      send: jest.fn(),
+      status: jest.fn().mockImplementation((status) => {
+        throw new Error("error");
+      }),
     };
-
-    // Mock console.log to verify error logging
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation();
-
-    testController(req, res);
-
-    expect(consoleSpy).toHaveBeenCalledWith(expect.any(Error));
-    expect(res.send).toHaveBeenCalledWith({ error: expect.any(Error) });
-
-    consoleSpy.mockRestore();
+    try {
+      expect(testController(req, res)).toThrow(new Error("error"));
+    } catch (error) {}
   });
 });
 

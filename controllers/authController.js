@@ -166,7 +166,7 @@ export const testController = (req, res) => {
     res.status(200).send("Protected Routes");
   } catch (error) {
     console.log(error);
-    res.send({ error });
+    res.status(400).send({ error });
   }
 };
 
