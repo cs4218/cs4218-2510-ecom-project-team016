@@ -146,11 +146,14 @@ To begin unit testing with Jest in your project, follow these steps:
      ```
 
 # Contribution Breakdown
+
 ## Aaron
+
 Set up CI
 
 Unit tests:
-- context/auth.js 
+
+- context/auth.js
 - helpers/authHelper.js
 - middlewares/authMiddleware.js
 - pages/Auth/Register.js
@@ -162,12 +165,14 @@ Unit tests:
   - testController
 
 ## Alyssa
+
 Unit tests:
+
 - components/Routes/Private.js
 - components/UserMenu.js
 - pages/user/Dashboard.js
 - models/userModel.js
-- pages/user/Orders.js 
+- pages/user/Orders.js
 - controllers/authController.js
   - updateProfileController
   - getOrdersController
@@ -178,7 +183,9 @@ Unit tests:
 - pages/admin/Users.js
 
 ## Heng Xing
+
 Unit tests:
+
 - components/Form/SearchInput.js
 - context/search.js
 - pages/Search.js
@@ -203,7 +210,9 @@ Unit tests:
 - models/categoryModel.js
 
 ## Jony
+
 Unit tests:
+
 - pages/Contact.js
 - pages/Policy.js
 - components/Footer.js
@@ -221,7 +230,9 @@ Unit tests:
   - brainTreePaymentController
 
 ## Ryan
+
 Unit tests:
+
 - components/AdminMenu.js
 - pages/admin/AdminDashboard.js
 - components/Form/CategoryForm.js
@@ -233,8 +244,12 @@ Unit tests:
   - updateCategoryController
   - deleteCategoryController
 - pages/admin/AdminOrders.js
-- pages/admin/Products.js 
+- pages/admin/Products.js
 - controllers/productController.js
   - createProductController
   - deleteProductController
   - updateProductController
+
+# Github Workflow
+
+- [Milestone 1 workflow](https://github.com/cs4218/cs4218-2510-ecom-project-team016/actions/runs/18260893106/job/51988631355)
