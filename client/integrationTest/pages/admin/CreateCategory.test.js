@@ -34,8 +34,10 @@ describe("CreateCategory Integration", () => {
     render(<CreateCategory />);
 
     // Wait for categories to load
-    await waitFor(() => expect(screen.getByText("Books")).toBeInTheDocument());
-    expect(screen.getByText("Electronics")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Books")).toBeInTheDocument();
+      expect(screen.getByText("Electronics")).toBeInTheDocument();
+    });
   });
 
   test("creates a new category", async () => {
@@ -50,11 +52,13 @@ describe("CreateCategory Integration", () => {
     fireEvent.change(input, { target: { value: "Clothing" } });
     fireEvent.click(submitBtn);
 
-    await waitFor(() => expect(axios.post).toHaveBeenCalledWith(
-      "/api/v1/category/create-category",
-      { name: "Clothing" }
-    ));
-    expect(toast.success).toHaveBeenCalledWith("Clothing is created");
+    await waitFor(() => {
+      expect(axios.post).toHaveBeenCalledWith(
+        "/api/v1/category/create-category",
+        { name: "Clothing" }
+      );
+      expect(toast.success).toHaveBeenCalledWith("Clothing is created");
+    });
   });
 
   test("updates a category", async () => {
@@ -71,12 +75,12 @@ describe("CreateCategory Integration", () => {
     fireEvent.change(modalInput, { target: { value: "Novels" } });
     fireEvent.click(screen.getAllByText("Submit")[1]);
 
-    await waitFor(() =>
+    await waitFor(() => {
       expect(axios.put).toHaveBeenCalledWith(
         "/api/v1/category/update-category/1",
         { name: "Novels" }
-      )
-    );
-    expect(toast.success).toHaveBeenCalledWith("Novels is updated");
+      );
+      expect(toast.success).toHaveBeenCalledWith("Novels is updated");
+    });
   });
 });
