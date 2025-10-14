@@ -20,7 +20,7 @@ export default {
   transformIgnorePatterns: ["/node_modules/(?!(styleMock\\.js)$)"],
 
   // only run these tests
-  testMatch: ["<rootDir>/client/test/**/*.test.js"],
+  testMatch: ["<rootDir>/client/test/**/*.test.js", "<rootDir>/client/integrationTest/**/*.test.js"],
 
   // jest code coverage
   collectCoverage: true,
