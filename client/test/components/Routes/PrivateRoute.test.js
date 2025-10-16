@@ -5,7 +5,7 @@ import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import { useAuth } from "client/src/context/auth";
 import axios from "axios";
-import PrivateRoute from "client/src/components/Routes/Private.js";
+import PrivateRoute from "client/src/components/Routes/PrivateRoute.js";
 import { Outlet } from "react-router-dom";
 import Spinner from "client/src/components/Spinner.js";
 
