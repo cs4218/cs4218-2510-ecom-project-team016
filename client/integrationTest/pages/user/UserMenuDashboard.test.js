@@ -11,13 +11,9 @@ jest.mock('client/src/context/auth', () => ({
     useAuth: jest.fn(() => [null, jest.fn()]) // Mock useAuth hook to return null state and a mock function for setAuth
 }));
 
-jest.mock("client/src/context/cart", () => ({
-  useCart: () => [[], jest.fn()],
-}));
-
-jest.mock("client/src/context/search", () => ({
-  useSearch: () => [ {}, jest.fn() ],
-}));
+jest.mock("client/src/components/Layout", () => ({ children }) => (
+  <div>LayoutMock {children}</div>
+));
 
 describe("Dashboard Integration with UserMenu", () => {
   it("renders user info and menu links", () => {

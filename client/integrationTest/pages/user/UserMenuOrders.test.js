@@ -11,13 +11,9 @@ jest.mock('client/src/context/auth', () => ({
     useAuth: jest.fn(() => [null, jest.fn()]) // Mock useAuth hook to return null state and a mock function for setAuth
 }));
 
-jest.mock("client/src/context/cart", () => ({
-    useCart: () => [[], jest.fn()],
-}));
-
-jest.mock("client/src/context/search", () => ({
-    useSearch: () => [{}, jest.fn()],
-}));
+jest.mock("client/src/components/Layout", () => ({ children }) => (
+    <div>LayoutMock {children}</div>
+));
 
 describe("Orders Integration with UserMenu", () => {
     it("renders orders and menu", async () => {
@@ -81,4 +77,40 @@ describe("Orders Integration with UserMenu", () => {
         expect(await screen.findByText("Pending")).toBeInTheDocument();
     });
 
+    it("handles API failure", async () => {
+        useAuth.mockReturnValue([{ token: "fake-token" }, jest.fn()]);
+        const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => { });
+        axios.get.mockRejectedValueOnce(new Error("API failed"));
+
+        render(
+            <MemoryRouter>
+                <Orders />
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            // Optionally check that orders state is set to empty
+            expect(screen.queryByText("Pending")).not.toBeInTheDocument();
+        });
+
+        await waitFor(() => {
+            expect(consoleSpy).toHaveBeenCalledWith(expect.any(Error));
+        });
+        consoleSpy.mockRestore();
+    });
+
+    it("sets orders to empty array if API returns unexpected data", async () => {
+        axios.get.mockResolvedValueOnce({ data: { foo: "bar" } }); // Neither array nor data.orders
+
+        render(
+            <MemoryRouter>
+                <Orders />
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            // Expect that no orders are rendered
+            expect(screen.getByText("No orders found")).toBeInTheDocument();
+        });
+    });
 });
