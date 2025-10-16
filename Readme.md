@@ -168,7 +168,8 @@ Unit tests:
 
 Unit tests:
 
-- components/Routes/Private.js
+- components/Routes/PrivateRoute.js
+- components/Routes/AdminRoute.js
 - components/UserMenu.js
 - pages/user/Dashboard.js
 - models/userModel.js

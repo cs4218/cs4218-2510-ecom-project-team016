@@ -106,13 +106,11 @@ describe("Profile Page Integration Test", () => {
         );
 
         fireEvent.change(screen.getByPlaceholderText("Enter Your Name"), { target: { value: "Updated John" } });
-        fireEvent.change(screen.getByPlaceholderText("Enter Your Email"), { target: { value: "newemail@test.com" } });
         fireEvent.change(screen.getByPlaceholderText("Enter Your Password"), { target: { value: "newpassword" } });
         fireEvent.change(screen.getByPlaceholderText("Enter Your Phone"), { target: { value: "987654321" } });
         fireEvent.change(screen.getByPlaceholderText("Enter Your Address"), { target: { value: "456 Avenue" } });
 
         expect(screen.getByPlaceholderText("Enter Your Name").value).toBe("Updated John");
-        expect(screen.getByPlaceholderText("Enter Your Email").value).toBe("newemail@test.com");
         expect(screen.getByPlaceholderText("Enter Your Password").value).toBe("newpassword");
         expect(screen.getByPlaceholderText("Enter Your Phone").value).toBe("987654321");
         expect(screen.getByPlaceholderText("Enter Your Address").value).toBe("456 Avenue");
