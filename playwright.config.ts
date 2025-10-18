@@ -13,11 +13,25 @@ export default defineConfig({
 
   captureGitInfo: { commit: true, diff: true },
 
-  webServer: {
-    command: "npm run dev",
-    port: 3000,
-    reuseExistingServer: true,
-  },
+  webServer: [
+    {
+      command: "npm run server",
+      port: 6060,
+      reuseExistingServer: true,
+      timeout: 120 * 1000,
+      env: {
+        MONGO_URL:
+          "mongodb+srv://e0957974:kh8716spm5uKpHPT@ecom4218.ygblofd.mongodb.net/?retryWrites=true&w=majority&appName=ecom4218",
+        JWT_SECRET: "HGFHGEAD12124322432",
+      },
+    },
+    {
+      command: "npm run client",
+      port: 3000,
+      reuseExistingServer: true,
+      timeout: 120 * 1000,
+    },
+  ],
 
   expect: {
     /**

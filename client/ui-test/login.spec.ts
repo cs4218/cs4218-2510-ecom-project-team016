@@ -6,12 +6,23 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("Login", () => {
-  test("should allow me to fill in login fields", async ({ page }) => {
-    const newEmail = page.getByPlaceholder("Enter Your Email");
+  test("successful login navigates to home page with user profile", async ({
+    page,
+  }) => {
+    const email = page.getByPlaceholder("Enter Your Email");
+    const password = page.getByPlaceholder("Enter Your Password");
+    const button = page.getByRole("button", { name: "LOGIN" });
 
-    await newEmail.fill("Hello");
+    await email.fill("testuser@gmail.com");
+    await password.fill("t3stp@ssword");
+    await button.click();
 
-    console.log("done");
-    // await newEmail.fill("validemail@gmail.com");
+    const toast = page.getByRole("status");
+    await expect(toast).toContainText("login successfully");
+
+    await page.waitForURL("/");
+
+    const userDropdown = page.getByRole("button", { name: "testuser" });
+    expect(userDropdown).toBeDefined();
   });
 });
