@@ -25,6 +25,10 @@ jest.mock("client/src/components/Layout", () => ({ children }) => (
     <div>Mocked Layout {children}</div>
 ));
 
+jest.mock("client/src/components/UserMenu", () => () => (
+  <div data-testid="mock-user-menu">User Menu</div>
+));
+
 describe("Orders Component", () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -143,5 +147,45 @@ describe("Orders Component", () => {
 
         expect(await screen.findByText("Jane Doe")).toBeInTheDocument();
         expect(screen.queryByText(/Price/)).not.toBeInTheDocument(); // Used /Price/ to match the text with regex
+    });
+
+    it("sets orders to empty array if API returns unexpected data", async () => {
+        axios.get.mockResolvedValueOnce({ data: { foo: "bar" } });
+
+        render(
+            <MemoryRouter initialEntries={['/user/orders']}>
+                <Routes>
+                    <Route path="/user/orders" element={<Orders />} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            // Expect that no orders are rendered
+            expect(screen.getByText("No orders found")).toBeInTheDocument();
+        });
+    });
+
+    it("sets orders from data.orders if API returns object with orders array", async () => {
+        axios.get.mockResolvedValueOnce({
+            data: {
+                orders: [
+                    { _id: "1", status: "Shipped", buyer: { name: "Bob" }, createAt: new Date(), payment: { success: true }, products: [] }
+                ]
+            }
+        });
+
+        render(
+            <MemoryRouter initialEntries={['/user/orders']}>
+                <Routes>
+                    <Route path="/user/orders" element={<Orders />} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText("Shipped")).toBeInTheDocument();
+            expect(screen.getByText("Bob")).toBeInTheDocument();
+        });
     });
 });
