@@ -15,6 +15,7 @@ const AuthProvider = ({ children, user = null, token = "" }) => {
       return;
     }
 
+    localStorage.setItem("auth", JSON.stringify(auth));
     _setAuth(auth);
   };
 
@@ -24,6 +25,8 @@ const AuthProvider = ({ children, user = null, token = "" }) => {
       user: null,
       token: "",
     });
+
+    localStorage.removeItem("auth");
   };
 
   //default axios
