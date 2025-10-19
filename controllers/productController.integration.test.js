@@ -29,7 +29,7 @@ describe("Product Integration Tests", () => {
     fs.writeFileSync(testImage, Buffer.alloc(100, 0));
 
     // Create a category for product foreign key
-    const category = await categoryModel.create({ name: "Electronics", slug: "electronics" });
+    const category = await categoryModel.create({ name: "Electronics2", slug: "electronics2" });
     categoryId = category._id;
 
     app = express();
@@ -52,11 +52,11 @@ describe("Product Integration Tests", () => {
 
   afterAll(async () => {
     fs.unlinkSync(testImage);
+    await categoryModel.deleteOne({ _id: categoryId });
     await mongoose.connection.close();
   });
 
   beforeEach(async () => {
-    await productModel.deleteMany({});
     // Create a default product for update/delete tests
     const product = await productModel.create({
       name: "OldProduct",
@@ -68,6 +68,11 @@ describe("Product Integration Tests", () => {
       slug: "oldproduct",
     });
     productId = product._id;
+  });
+
+  afterEach(async () => {
+    // delete the test product
+    await productModel.deleteOne({ _id: productId });
   });
 
   // ---------------- Create ----------------
@@ -84,8 +89,8 @@ describe("Product Integration Tests", () => {
   it("should create product successfully with valid data", async () => {
     const res = await request(app)
       .post("/api/create-product")
-      .field("name", "laptop")
-      .field("description", "Powerful laptop")
+      .field("name", "kektop")
+      .field("description", "Powerful kektop")
       .field("price", "1500")
       .field("category", categoryId.toString())
       .field("quantity", "10")
@@ -97,9 +102,12 @@ describe("Product Integration Tests", () => {
     expect(res.body.success).toBe(true);
     expect(res.body.message).toBe("Product Created Successfully");
 
-    const inDb = await productModel.findOne({ name: "laptop" });
+    const inDb = await productModel.findOne({ name: "kektop" });
     expect(inDb).not.toBeNull();
-    expect(inDb.slug).toBe("laptop");
+    expect(inDb.slug).toBe("kektop");
+
+    // Clean up
+    await productModel.deleteOne({ _id: inDb._id });
   });
 
   it("should reject photo larger than 1MB", async () => {

@@ -34,11 +34,14 @@ describe("Category Integration Tests", () => {
   });
 
   beforeEach(async () => {
-    // Clean DB before each test
-    await categoryModel.deleteMany({});
     // Reset a default category for update/delete tests
     const category = await categoryModel.create({ name: "Old", slug: "old" });
     categoryId = category._id;
+  });
+
+  afterEach(async () => {
+    // delete the test category
+    await categoryModel.deleteOne({ _id: categoryId });
   });
 
   // ---------------- Create ----------------
@@ -55,27 +58,33 @@ describe("Category Integration Tests", () => {
   it("should create a new category", async () => {
     const res = await request(app)
       .post("/api/create-category")
-      .send({ name: "Electronics" })
+      .send({ name: "NewCategory" })
       .set("Authorization", "Bearer mockAdminToken");
 
     expect(res.statusCode).toBe(201);
     expect(res.body.success).toBe(true);
-    expect(res.body.category.name).toBe("Electronics");
+    expect(res.body.category.name).toBe("NewCategory");
 
-    const inDb = await categoryModel.findOne({ name: "Electronics" });
+    const inDb = await categoryModel.findOne({ name: "NewCategory" });
     expect(inDb).not.toBeNull();
+
+    // Clean up
+    await categoryModel.deleteOne({ _id: inDb._id });
   });
 
   it("should return existing message if category already exists", async () => {
-    await categoryModel.create({ name: "Books", slug: "books" });
+    await categoryModel.create({ name: "Books2", slug: "books2" });
 
     const res = await request(app)
       .post("/api/create-category")
-      .send({ name: "Books" })
+      .send({ name: "Books2" })
       .set("Authorization", "Bearer mockAdminToken");
 
     expect(res.statusCode).toBe(200);
     expect(res.body.message).toBe("Category Already Exists");
+
+    // Clean up
+    await categoryModel.deleteOne({ name: "Books2" });
   });
 
   // ---------------- Update ----------------
