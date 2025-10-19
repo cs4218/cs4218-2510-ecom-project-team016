@@ -62,6 +62,7 @@ const AdminOrders = () => {
         <div className="col-md-9">
           <h1 className="text-center">All Orders</h1>
           {orders?.map((o, i) => {
+            console.log(o);
             return (
               <div className="border shadow" key={o._id}>
                 <table className="table">
@@ -92,15 +93,15 @@ const AdminOrders = () => {
                         </Select>
                       </td>
                       <td>{o?.buyer?.name}</td>
-                      <td>{moment(o?.createAt).fromNow()}</td>
-                      <td>{o?.payment.success ? "Success" : "Failed"}</td>
+                      <td>{moment(o?.createdAt).fromNow()}</td>
+                      <td>{o?.payment ? (o.payment.success ? "Success" : "Failed") : "Pending"}</td>
                       <td>{o?.products?.length}</td>
                     </tr>
                   </tbody>
                 </table>
                 <div className="container">
                   {o?.products?.map((p, i) => (
-                    <div className="row mb-2 p-3 card flex-row" key={p._id}>
+                    <div className="row mb-2 p-3 card flex-row" key={`${o._id}-${p._id}-${i}`}>
                       <div className="col-md-4">
                         <img
                           src={`/api/v1/product/product-photo/${p._id}`}
