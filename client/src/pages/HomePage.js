@@ -189,6 +189,7 @@ const HomePage = () => {
                         );
                         toast.success("Item Added to cart");
                       }}
+                      id={"add-to-cart-button-" + p.name}
                     >
                       ADD TO CART
                     </button>
