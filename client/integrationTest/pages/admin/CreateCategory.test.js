@@ -6,19 +6,17 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import CreateCategory from "client/src/pages/admin/CreateCategory"; // adjust path
+import CreateCategory from "client/src/pages/admin/CreateCategory";
+import { MemoryRouter } from "react-router-dom";
 
 jest.mock("axios");
 jest.mock("react-hot-toast", () => ({
   success: jest.fn(),
   error: jest.fn(),
 }));
-
-// Mock Layout and AdminMenu (to isolate test)
 jest.mock("client/src/components/Layout", () => ({ children }) => <div>{children}</div>);
-jest.mock("client/src/components/AdminMenu", () => () => <div>AdminMenu</div>);
 
-describe("CreateCategory Integration", () => {
+describe("CategoryForm Integration", () => {
   const mockCategories = [
     { _id: "1", name: "Books" },
     { _id: "2", name: "Electronics" },
@@ -31,7 +29,11 @@ describe("CreateCategory Integration", () => {
   test("renders categories fetched from API", async () => {
     axios.get.mockResolvedValueOnce({ data: { success: true, category: mockCategories } });
 
-    render(<CreateCategory />);
+    render(
+      <MemoryRouter>
+        <CreateCategory />
+      </MemoryRouter>
+    );
 
     // Wait for categories to load
     await waitFor(() => {
@@ -44,7 +46,11 @@ describe("CreateCategory Integration", () => {
     axios.get.mockResolvedValue({ data: { success: true, category: mockCategories } });
     axios.post.mockResolvedValueOnce({ data: { success: true } });
 
-    render(<CreateCategory />);
+    render(
+      <MemoryRouter>
+        <CreateCategory />
+      </MemoryRouter>
+    );
 
     const input = screen.getByPlaceholderText("Enter new category");
     const submitBtn = screen.getByText("Submit");
@@ -65,7 +71,11 @@ describe("CreateCategory Integration", () => {
     axios.get.mockResolvedValue({ data: { success: true, category: mockCategories } });
     axios.put.mockResolvedValueOnce({ data: { success: true } });
 
-    render(<CreateCategory />);
+    render(
+      <MemoryRouter>
+        <CreateCategory />
+      </MemoryRouter>
+    );
 
     await waitFor(() => screen.getByText("Books"));
 
@@ -81,6 +91,34 @@ describe("CreateCategory Integration", () => {
         { name: "Novels" }
       );
       expect(toast.success).toHaveBeenCalledWith("Novels is updated");
+    });
+  });
+});
+
+describe("AdminMenu Integration", () => {
+  test("renders all admin links correctly", async () => {
+    render(
+      <MemoryRouter>
+        <CreateCategory />
+      </MemoryRouter>
+    );
+
+    // Heading
+    await waitFor(() => { 
+      expect(screen.getByText("Admin Panel")).toBeInTheDocument();
+      // Link texts
+      const links = [
+        { text: "Create Category", href: "/dashboard/admin/create-category" },
+        { text: "Create Product", href: "/dashboard/admin/create-product" },
+        { text: "Products", href: "/dashboard/admin/products" },
+        { text: "Orders", href: "/dashboard/admin/orders" },
+      ];
+
+      links.forEach(({ text, href }) => {
+        const linkEl = screen.getByText(text);
+        expect(linkEl).toBeInTheDocument();
+        expect(linkEl.getAttribute("href")).toBe(href);
+      });
     });
   });
 });
