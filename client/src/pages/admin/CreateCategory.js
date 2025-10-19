@@ -122,6 +122,7 @@ const CreateCategory = () => {
                             setUpdatedName(c.name);
                             setSelected(c);
                           }}
+                          id={`edit-button-${c.name}`}
                         >
                           Edit
                         </button>
@@ -130,6 +131,7 @@ const CreateCategory = () => {
                           onClick={() => {
                             handleDelete(c._id);
                           }}
+                          id={`delete-button-${c.name}`}
                         >
                           Delete
                         </button>
