@@ -27,7 +27,7 @@ describe("Orders Integration with UserMenu", () => {
                 _id: "1",
                 status: "Pending",
                 buyer: { name: "Alice" },
-                createAt: new Date(),
+                createdAt: new Date(),
                 payment: { success: true },
                 products: [
                     { _id: "p1", name: "Product 1", description: "Desc 1", price: 100 },
