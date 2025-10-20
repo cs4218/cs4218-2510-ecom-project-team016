@@ -97,6 +97,7 @@ const CreateProduct = () => {
                     type="file"
                     name="photo"
                     accept="image/*"
+                    id="test-upload-photo"
                     onChange={(e) => setPhoto(e.target.files[0])}
                     hidden
                   />

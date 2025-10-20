@@ -84,6 +84,7 @@ const AdminOrders = () => {
                           variant="borderless"
                           onChange={(value) => handleChange(o._id, value)}
                           defaultValue={o?.status}
+                          id={`order-status-${o?.buyer?.name}`}
                         >
                           {statuses.map((s, i) => (
                             <Option key={i} value={s}>
