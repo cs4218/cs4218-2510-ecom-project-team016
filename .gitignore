@@ -4,5 +4,6 @@ node_modules
 /blob-report/
 /playwright/.cache/
 # Ignore coverage reports and artifacts
+
 .env
 coverage/
