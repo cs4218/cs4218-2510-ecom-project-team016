@@ -22,7 +22,8 @@ async function login(page: Page, email: string, password: string) {
 }
 
 async function navigateToProfile(page: Page, username: string) {
-  await page.getByRole('button', { name: username }).click();
+  const userButton = page.locator('a[role="button"][data-bs-toggle="dropdown"]');
+  await userButton.click();
   await page.getByRole('link', { name: 'Dashboard' }).click();
   await page.getByRole('link', { name: 'Profile' }).click();
   await expect(page.getByRole('textbox', { name: 'Enter Your Name' })).toBeVisible();

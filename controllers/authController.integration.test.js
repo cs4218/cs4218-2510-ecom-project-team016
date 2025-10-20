@@ -60,6 +60,7 @@ describe("User & Order Integration Tests (No Middleware)", () => {
     });
 
     afterAll(async () => {
+        await userModel.deleteOne({ _id: user._id });
         await mongoose.connection.close();
     });
 

@@ -60,10 +60,21 @@ async function ensureUserExists(page: Page, user = TEST_USER) {
   await page.getByRole('textbox', { name: 'Enter Your Password' }).fill(user.password);
   await page.getByRole('button', { name: 'LOGIN' }).click();
 
-  if (await page.getByText('Something went wrong').isVisible()) {
-    await registerUser(page, user); // only register if login failed
+  try {
+    // Wait for success redirect (adjust URL as needed)
+    await page.waitForURL('/', { timeout: 3000 });
+    console.log("User logged in successfully");
+  } catch {
+    // If redirect didn't happen, check for error toast
+    const errorToast = page.locator('text=Something went wrong');
+    if (await errorToast.isVisible({ timeout: 2000 })) {
+      console.log("Login failed, registering user...");
+      await registerUser(page, user);
+      await login(page, user.email, user.password);
+    }
   }
 }
+
 
 // -----------------------------
 // TEST SUITE: Orders
@@ -73,7 +84,6 @@ test.describe('Orders', () => {
   // 1️ Test: User has no orders
   test('user with no orders sees empty message', async ({ page }) => {
     await ensureUserExists(page, TEST_USER);
-    await login(page, TEST_USER.email, TEST_USER.password); // Login
     await navigateToOrders(page, TEST_USER.name); // Navigate
 
     await expect(page.locator('h1')).toHaveText('All Orders');
@@ -83,7 +93,6 @@ test.describe('Orders', () => {
   // 2️ Test: User can place order and view it
   test('user can place an order and view it in orders page', async ({ page }) => {
     await ensureUserExists(page, EXISTING_USER);
-    await login(page, EXISTING_USER.email, EXISTING_USER.password);
 
     // Add to cart & pay
     await page.getByRole('link', { name: 'Home' }).click();
