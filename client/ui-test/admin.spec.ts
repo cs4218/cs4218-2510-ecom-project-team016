@@ -258,6 +258,24 @@ test.describe("Admin", () => {
     await expect(page.getByText("All Products List")).toBeVisible();
     await expect(page.getByRole('link', { name: updatedProductName })).not.toBeVisible();
   });
+
+  test('should allow me to vie users', async ({ page }) => {
+    await login(page);
+  
+    // Navigate to admin dashboard
+    await navigateToAdminDashboard(page);
+    await expect(page.getByRole('heading', { name: /Admin Panel/i })).toBeVisible();
+  
+    // Verify sidebar/dashboard links
+    const expectedLinks = ['Create Category', 'Create Product', 'Products', 'Orders', 'Users'];
+    for (const linkText of expectedLinks) {
+      await expect(page.getByRole('link', { name: linkText })).toBeVisible();
+    }
+  
+    // Navigate to Users page
+    await page.getByRole('link', { name: 'Users' }).click();
+    await expect(page.getByRole('heading', { name: /All Users/i })).toBeVisible();
+  });
 });
 
 
