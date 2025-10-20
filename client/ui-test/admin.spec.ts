@@ -129,7 +129,7 @@ test.describe("Admin", () => {
     await page.getByRole('link', { name: 'Orders' }).click();
 
     // Verify order details
-    await expect(page.getByRole('main')).toContainText('Not Process');
+    await expect(page.getByRole('main')).toContainText('Not Processed');
 
     // Click the first matching cell
     await page.getByRole('cell', { name: 'aaa' }).first().click();
@@ -141,7 +141,7 @@ test.describe("Admin", () => {
     await expect(page.getByRole('main')).toContainText('Smartphone');
 
     // Update order status
-    await page.getByText('Not Process').first().click();
+    await page.getByText('Not Processed').first().click();
     await page.getByTitle('Processing').first().click();
 
     // Verify status update

@@ -34,7 +34,7 @@ describe("AdminOrders Component", () => {
         _id: "o1",
         status: "Processing",
         buyer: { name: "John Doe" },
-        createAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
         payment: { success: true },
         products: [
           {
@@ -96,7 +96,7 @@ describe("AdminOrders Component", () => {
         _id: "o1",
         status: "Processing",
         buyer: { name: "John Doe" },
-        createAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
         payment: { success: false },
         products: [
           {

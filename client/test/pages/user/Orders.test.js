@@ -44,7 +44,7 @@ describe("Orders Component", () => {
                 _id: "order1",
                 status: "Processing",
                 buyer: { name: "John Doe" },
-                createAt: "2025-01-01T00:00:00.000Z",
+                createdAt: "2025-01-01T00:00:00.000Z",
                 payment: { success: true },
                 products: [
                     {
@@ -131,7 +131,7 @@ describe("Orders Component", () => {
             _id: "order2",
             status: "Pending",
             buyer: { name: "Jane Doe" },
-            createAt: "2025-01-01T00:00:00.000Z",
+            createdAt: "2025-01-01T00:00:00.000Z",
             payment: { success: false },
             products: [],
         }];
@@ -170,7 +170,7 @@ describe("Orders Component", () => {
         axios.get.mockResolvedValueOnce({
             data: {
                 orders: [
-                    { _id: "1", status: "Shipped", buyer: { name: "Bob" }, createAt: new Date(), payment: { success: true }, products: [] }
+                    { _id: "1", status: "Shipped", buyer: { name: "Bob" }, createdAt: new Date(), payment: { success: true }, products: [] }
                 ]
             }
         });

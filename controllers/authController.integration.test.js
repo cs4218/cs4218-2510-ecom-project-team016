@@ -143,7 +143,7 @@ describe("User & Order Integration Tests (No Middleware)", () => {
         await orderModel.create({
             buyer: user._id,
             products: [testProduct._id],
-            status: "Not Process",
+            status: "Not Processed",
         });
 
         const res = await request(app).get("/api/orders");
@@ -158,7 +158,7 @@ describe("User & Order Integration Tests (No Middleware)", () => {
         await orderModel.create({
             buyer: user._id,
             products: [testProduct._id],
-            status: "Not Process",
+            status: "Not Processed",
         });
 
         const res = await request(app).get("/api/all-orders");
@@ -173,7 +173,7 @@ describe("User & Order Integration Tests (No Middleware)", () => {
         const order = await orderModel.create({
             buyer: user._id,
             products: [testProduct._id],
-            status: "Not Process",
+            status: "Not Processed",
         });
 
         const res = await request(app)

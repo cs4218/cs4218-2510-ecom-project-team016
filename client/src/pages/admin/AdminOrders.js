@@ -9,7 +9,7 @@ import { Select } from "antd";
 const { Option } = Select;
 
 const statuses = [
-  "Not Process",
+  "Not Processed",
   "Processing",
   "Shipped",
   "Delivered",
