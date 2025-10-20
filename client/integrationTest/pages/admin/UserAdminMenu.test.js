@@ -33,6 +33,7 @@ describe("Users Page Integration Test", () => {
     expect(screen.getByText("Create Product")).toBeInTheDocument();
     expect(screen.getByText("Products")).toBeInTheDocument();
     expect(screen.getByText("Orders")).toBeInTheDocument();
+    expect(screen.getByText("Users")).toBeInTheDocument();
   });
 
   test("AdminMenu links have correct href", () => {
@@ -57,6 +58,10 @@ describe("Users Page Integration Test", () => {
     expect(screen.getByText("Orders").closest("a")).toHaveAttribute(
       "href",
       "/dashboard/admin/orders"
+    );
+    expect(screen.getByText("Users").closest("a")).toHaveAttribute(
+      "href",
+      "/dashboard/admin/users"
     );
   });
 });
