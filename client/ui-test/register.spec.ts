@@ -7,6 +7,64 @@ test.beforeEach(async ({ page }) => {
 
 test.describe("Register", () => {
   const TEST_PASSWORD = "t3stp@ssword";
+  test("registration form shows all expected fields", async ({ page }) => {
+    await expect(page.getByPlaceholder("Enter Your Name")).toBeVisible();
+    await expect(page.getByPlaceholder("Enter Your Email")).toBeVisible();
+    await expect(page.getByPlaceholder("Enter Your Password")).toBeVisible();
+    await expect(page.getByPlaceholder("Enter Your Phone")).toBeVisible();
+    await expect(page.getByPlaceholder("Enter Your Address")).toBeVisible();
+    await expect(
+      page.getByPlaceholder("What is Your Favorite sports")
+    ).toBeVisible();
+    await expect(page.locator('input[type="Date"]')).toBeVisible();
+    await expect(page.getByRole("button", { name: "REGISTER" })).toBeVisible();
+  });
+
+  test("registration form fields have expected value on fill", async ({
+    page,
+  }) => {
+    const sample = {
+      name: "Jane Doe",
+      email: "janedoe@example.com",
+      password: TEST_PASSWORD,
+      phone: "5551234567",
+      address: "10 Downing St",
+      dob: "1990-12-31",
+      answer: "Tennis",
+    };
+
+    await page.getByPlaceholder("Enter Your Name").fill(sample.name);
+    await page.getByPlaceholder("Enter Your Email").fill(sample.email);
+    const passwordField = page.getByPlaceholder("Enter Your Password");
+    await passwordField.fill(sample.password);
+    await page.getByPlaceholder("Enter Your Phone").fill(sample.phone);
+    await page.getByPlaceholder("Enter Your Address").fill(sample.address);
+    await page.locator('input[type="Date"]').fill(sample.dob);
+    await page
+      .getByPlaceholder("What is Your Favorite sports")
+      .fill(sample.answer);
+
+    await expect(page.getByPlaceholder("Enter Your Name")).toHaveValue(
+      sample.name
+    );
+    await expect(page.getByPlaceholder("Enter Your Email")).toHaveValue(
+      sample.email
+    );
+    await expect(passwordField).toHaveValue(sample.password);
+    await expect(page.getByPlaceholder("Enter Your Phone")).toHaveValue(
+      sample.phone
+    );
+    await expect(page.getByPlaceholder("Enter Your Address")).toHaveValue(
+      sample.address
+    );
+    await expect(page.locator('input[type="Date"]')).toHaveValue(sample.dob);
+    await expect(
+      page.getByPlaceholder("What is Your Favorite sports")
+    ).toHaveValue(sample.answer);
+
+    await expect(passwordField).toHaveAttribute("type", "password");
+    await expect(page.locator(`text=${sample.password}`)).toHaveCount(0);
+  });
 
   test("successful registration and login flow", async ({ page }) => {
     // Generate unique credentials
@@ -59,8 +117,6 @@ test.describe("Register", () => {
     // Verify login succeeded
     const loginResponse = await loginResponsePromise;
     const loginBody = await loginResponse.json();
-
-    console.log("Login Response:", loginBody);
 
     expect(loginBody.success).toBe(true);
     expect(loginBody.message).toBe("login successfully");
