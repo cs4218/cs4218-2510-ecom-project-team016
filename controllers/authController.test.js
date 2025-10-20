@@ -7,6 +7,7 @@ import {
   getOrdersController,
   getAllOrdersController,
   orderStatusController,
+  getAllUsersController,
 } from "./authController.js";
 import userModel from "../models/userModel.js";
 import orderModel from "../models/orderModel.js";
@@ -449,7 +450,7 @@ describe("test controller test", async () => {
     };
     try {
       expect(testController(req, res)).toThrow(new Error("error"));
-    } catch (error) {}
+    } catch (error) { }
   });
 });
 
@@ -667,5 +668,64 @@ describe("Auth Controllers Unit Tests", () => {
       message: "Error While Updating Order",
       error,
     });
+  });
+});
+
+describe("getAllUsersController", () => {
+  let req, res;
+
+  beforeEach(() => {
+    req = {};
+    res = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn(),
+      json: jest.fn(),
+    };
+    jest.clearAllMocks();
+  });
+
+  it("should return all users successfully", async () => {
+    const mockUsers = [
+      { _id: "1", name: "Alice", email: "a@test.com" },
+      { _id: "2", name: "Bob", email: "b@test.com" },
+    ];
+
+    const mockQuery = { select: jest.fn().mockReturnValue(mockUsers) };
+    jest.spyOn(userModel, "find").mockReturnValue(mockQuery);
+
+    await getAllUsersController(req, res);
+
+    expect(userModel.find).toHaveBeenCalledWith({});
+    expect(mockQuery.select).toHaveBeenCalledWith("-password");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.send).toHaveBeenCalledWith({ success: true, users: mockUsers });
+  });
+
+  it("should return empty array if no users exist", async () => {
+    const mockQuery = { select: jest.fn().mockReturnValue([]) };
+    jest.spyOn(userModel, "find").mockReturnValue(mockQuery);
+
+    await getAllUsersController(req, res);
+
+    expect(res.send).toHaveBeenCalledWith({ success: true, users: [] });
+  });
+
+  it("should handle error and return 500", async () => {
+    const error = new Error("DB Error");
+
+    // Mock find to return a query object whose .select() rejects
+    jest.spyOn(userModel, "find").mockReturnValue({
+      select: jest.fn().mockRejectedValue(error),
+    });
+
+    await getAllUsersController(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.send).toHaveBeenCalledWith({
+      success: false,
+      message: "Error While Getting Users",
+      error,
+    });
+
   });
 });

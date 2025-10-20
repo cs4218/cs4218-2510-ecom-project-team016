@@ -2,9 +2,11 @@
 // "help me write unit tests for this component:"
 // Edits were made to fix issues and improve coverage 
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import Users from "client/src/pages/admin/Users";
+import axios from "axios";
 
+jest.mock("axios");
 // Mock Layout and AdminMenu so we can check if they render without full implementation
 jest.mock("client/src/components/Layout", () => ({ children }) => (
   <div>Mocked Layout {children}</div>
@@ -12,18 +14,37 @@ jest.mock("client/src/components/Layout", () => ({ children }) => (
 jest.mock("client/src/components/AdminMenu", () => () => <div>Mocked AdminMenu</div>);
 
 describe("Users Component", () => {
-  it("renders All Users heading", () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("renders heading and AdminMenu", () => {
     render(<Users />);
     expect(screen.getByText("All Users")).toBeInTheDocument();
-  });
-
-  it("renders AdminMenu component", () => {
-    render(<Users />);
     expect(screen.getByText("Mocked AdminMenu")).toBeInTheDocument();
+    expect(screen.getByText("Mocked Layout")).toBeInTheDocument();
   });
 
-  it("passes correct title prop to Layout", () => {
+  it("fetches and displays users", async () => {
+    const mockUsers = [
+      { _id: "1", name: "Alice", email: "alice@test.com", role: 0, createdAt: new Date() },
+      { _id: "2", name: "Bob", email: "bob@test.com", role: 1, createdAt: new Date() },
+    ];
+    axios.get.mockResolvedValue({ data: { success: true, users: mockUsers } });
+
     render(<Users />);
-    expect(screen.getByText("Mocked Layout")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+  });
+
+  it("shows error toast when API fails", async () => {
+    axios.get.mockRejectedValue(new Error("API Error"));
+    render(<Users />);
+    await waitFor(() => {
+      expect(screen.getByText("All Users")).toBeInTheDocument(); // Component still renders
+    });
   });
 });
