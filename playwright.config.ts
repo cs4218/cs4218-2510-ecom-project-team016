@@ -13,11 +13,20 @@ export default defineConfig({
 
   captureGitInfo: { commit: true, diff: true },
 
-  webServer: {
-    command: "npm run dev",
-    port: 3000,
-    reuseExistingServer: true,
-  },
+  webServer: [
+    {
+      command: "npm run server",
+      port: 6060,
+      reuseExistingServer: true,
+      timeout: 120 * 1000,
+    },
+    {
+      command: "npm run client",
+      port: 3000,
+      reuseExistingServer: true,
+      timeout: 120 * 1000,
+    },
+  ],
 
   expect: {
     /**
