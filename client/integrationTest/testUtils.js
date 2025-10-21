@@ -7,7 +7,10 @@ import { CartProvider } from "../src/context/cart";
 import { SearchProvider } from "../src/context/search";
 import axios from "axios";
 
-export function renderWithProviders(ui, { route = "/", user = null, token = "", cart = null } = {}) {
+export function renderWithProviders(
+  ui,
+  { route = "/", user = null, token = "", cart = null } = {}
+) {
   try {
     if (!axios.defaults) {
       axios.defaults = { headers: { common: {} } };
@@ -16,8 +19,7 @@ export function renderWithProviders(ui, { route = "/", user = null, token = "", 
     } else if (!axios.defaults.headers.common) {
       axios.defaults.headers.common = {};
     }
-  } catch (e) {
-  }
+  } catch (e) {}
   if (cart !== null) {
     window.localStorage.setItem("cart", JSON.stringify(cart));
   } else {
