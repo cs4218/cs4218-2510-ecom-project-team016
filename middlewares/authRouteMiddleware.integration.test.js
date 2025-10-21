@@ -7,6 +7,7 @@ import JWT from "jsonwebtoken";
 import authRouter from "../routes/authRoute.js";
 import userModel from "../models/userModel.js";
 import { describe } from "node:test";
+import orderModel from "../models/orderModel.js";
 
 // Mock the models
 jest.mock("../models/userModel.js");
@@ -44,7 +45,7 @@ describe("Auth Route → Middleware → Controller Integration Tests", () => {
     jest.clearAllMocks();
   });
 
-  describe("Test requiredSignIn middleware with protected Route: GET /user-auth", () => {
+  describe("Test requiredSignIn middleware with test /user-auth controller", () => {
     test("Valid JWT token passes through requireSignIn and reaches controller", async () => {
       const mockUser = {
         _id: "user123",
@@ -118,7 +119,7 @@ describe("Auth Route → Middleware → Controller Integration Tests", () => {
     });
   });
 
-  describe("Test requireSignIn middleware with protected Route: PUT /profile", () => {
+  describe("Test requireSignIn middleware with updateProfileController", () => {
     test("req.user is correctly populated by middleware for use in controller", async () => {
       const mockUser = {
         _id: "user123",
@@ -185,36 +186,55 @@ describe("Auth Route → Middleware → Controller Integration Tests", () => {
     });
   });
 
-  describe("Test requireSignIn middleware with protected Route: GET /orders", () => {
-    test("Controller receives correct user ID from middleware for data filtering", async () => {
-      const mockUserId = "user456";
-      const validToken = JWT.sign({ _id: mockUserId }, TEST_JWT_SECRET, {
+  describe("Test requireSignIn middleware with getOrdersController", () => {
+    test("returns order when user._id is valid", async () => {
+      const mockUser = {
+        _id: "user123",
+        name: "Test User",
+        email: "test@example.com",
+        phone: "1234567890",
+        address: "123 Test St",
+        role: 0,
+        password: "hashed_oldpassword",
+      };
+
+      const validToken = JWT.sign(mockUser, TEST_JWT_SECRET, {
         expiresIn: "7d",
       });
 
-      const orderModel = require("../models/orderModel.js").default;
       const mockOrders = [
         {
           _id: "order1",
-          buyer: mockUserId,
+          buyer: mockUser._id,
           products: [],
           status: "Processing",
         },
         {
           _id: "order2",
-          buyer: mockUserId,
+          buyer: mockUser._id,
           products: [],
           status: "Delivered",
         },
       ];
 
       const mockPopulate = jest.fn().mockReturnThis();
-      orderModel.find = jest.fn().mockReturnValue({
-        populate: mockPopulate.mockReturnValue({
-          populate: jest.fn().mockResolvedValue(mockOrders),
-        }),
+      orderModel.find = jest.fn().mockImplementation(({ buyer }) => {
+        if (buyer == null || buyer == undefined) {
+          return null;
+        }
+
+        if (buyer != mockUser._id) {
+          return null;
+        }
+
+        return {
+          populate: mockPopulate.mockReturnValue({
+            populate: jest.fn().mockResolvedValue(mockOrders),
+          }),
+        };
       });
 
+      // Act: Make request to update profile
       const response = await request(app)
         .get("/api/v1/auth/orders")
         .set("Authorization", validToken);
@@ -222,12 +242,100 @@ describe("Auth Route → Middleware → Controller Integration Tests", () => {
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
       expect(response.body).toEqual(mockOrders);
+    });
+  });
 
-      expect(orderModel.find).toHaveBeenCalledWith({ buyer: mockUserId });
+  describe("Test requireSignIn middleware with getAllOrdersController", () => {
+    test("Admin user as token gets access to getAllOrderController", async () => {
+      const mockUser = {
+        _id: "user123",
+        name: "Test User",
+        email: "test@example.com",
+        phone: "1234567890",
+        address: "123 Test St",
+        role: 1,
+        password: "hashed_oldpassword",
+      };
+
+      const validToken = JWT.sign(mockUser, TEST_JWT_SECRET, {
+        expiresIn: "7d",
+      });
+
+      userModel.findById.mockImplementation((id) => {
+        if (id != mockUser._id) {
+          return null;
+        }
+
+        return mockUser;
+      });
+
+      const mockOrders = [
+        {
+          _id: "order1",
+          buyer: mockUser._id,
+          products: [],
+          status: "Processing",
+        },
+        {
+          _id: "order2",
+          buyer: mockUser._id,
+          products: [],
+          status: "Delivered",
+        },
+      ];
+
+      const mockPopulate = jest.fn().mockReturnThis();
+      orderModel.find = jest.fn().mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            sort: jest.fn().mockResolvedValue(mockOrders),
+          }),
+        }),
+      });
+
+      const response = await request(app)
+        .get("/api/v1/auth/all-orders")
+        .set("Authorization", validToken);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body).toEqual(mockOrders);
+    });
+
+    test("Non admin user as token does not get access to getAllOrderController", async () => {
+      const mockUser = {
+        _id: "user123",
+        name: "Test User",
+        email: "test@example.com",
+        phone: "1234567890",
+        address: "123 Test St",
+        role: 0,
+        password: "hashed_oldpassword",
+      };
+
+      const validToken = JWT.sign(mockUser, TEST_JWT_SECRET, {
+        expiresIn: "7d",
+      });
+
+      userModel.findById.mockImplementation((id) => {
+        if (id != mockUser._id) {
+          return null;
+        }
+
+        return mockUser;
+      });
+
+      const response = await request(app)
+        .get("/api/v1/auth/all-orders")
+        .set("Authorization", validToken);
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toBe("UnAuthorized Access");
     });
 
     test("Missing token prevents access to orders", async () => {
-      const response = await request(app).get("/api/v1/auth/orders");
+      const response = await request(app).get("/api/v1/auth/all-orders");
 
       expect(response.status).toBe(500);
       expect(response.body.success).toBe(false);
@@ -241,7 +349,7 @@ describe("Auth Route → Middleware → Controller Integration Tests", () => {
         _id: "admin123",
         name: "Admin User",
         email: "admin@example.com",
-        role: 1, // Admin role
+        role: 1,
       };
 
       const validToken = JWT.sign({ _id: mockAdminUser._id }, TEST_JWT_SECRET, {
@@ -265,7 +373,7 @@ describe("Auth Route → Middleware → Controller Integration Tests", () => {
         _id: "user123",
         name: "Regular User",
         email: "user@example.com",
-        role: 0, // Regular user role
+        role: 0,
       };
 
       const validToken = JWT.sign(
